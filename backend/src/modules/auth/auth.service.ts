@@ -1,20 +1,21 @@
 import bcrypt from "bcrypt";
-import jwt from "jsonwebtoken";
 
 import {
   findUserByEmail,
   findUserByUsername,
   createUser,
+  findUserByIdentifier,
+  findUserById
 } from "./auth.repository.js";
-
-import { env } from "../../config/env.js";
+import { generateAccessToken } from "../../lib/jwt.js";
+import type { LoginRequest } from "./auth.types.js";
 
 import {
   type RegisterRequest,
   type AuthResponse,
 } from "./auth.types.js";
 import { AppError } from "../../errors/AppError.js";
-import type { StringValue } from "ms";
+
 
 export async function registerUser(
     data: RegisterRequest
@@ -48,17 +49,7 @@ export async function registerUser(
         passwordHash: hashedPassword,
       });
 
-      const token = jwt.sign(
-        {
-          userId: user.id,
-          username: user.username,
-          email: user.email,
-        },
-        env.JWT_SECRET,
-        {
-          expiresIn: env.JWT_EXPIRES_IN as StringValue,
-        }
-      );
+      const token = generateAccessToken(user);
 
       return {
         success: true,
@@ -70,6 +61,65 @@ export async function registerUser(
           username: user.username,
           email: user.email,
         },
+      };
+  }
+
+  export async function loginUser(
+    data: LoginRequest
+  ): Promise<AuthResponse> {
+    const { identifier, password } = data;
+
+const user = await findUserByIdentifier(identifier);
+
+if (!user) {
+    throw new AppError(
+      401,
+      "Invalid email/username or password."
+    );
+  }
+  
+  const isPasswordValid = await bcrypt.compare(
+    password,
+    user.passwordHash
+  );
+  
+  if (!isPasswordValid) {
+    throw new AppError(
+      401,
+      "Invalid email/username or password."
+    );
+  }
+
+  const token = generateAccessToken(user);
+  return {
+    success: true,
+    message: "Login successful",
+    token,
+    user: {
+      id: user.id,
+      displayName: user.displayName,
+      username: user.username,
+      email: user.email,
+    },
+  };
+}
+
+export async function getCurrentUser(
+    userId: string
+  ): Promise<AuthResponse["user"]> {
+    const user = await findUserById(userId);
+
+    if (!user) {
+    throw new AppError(
+        404,
+        "User not found."
+    );
+    }
+    return {
+        id: user.id,
+        displayName: user.displayName,
+        username: user.username,
+        email: user.email,
       };
   }
 

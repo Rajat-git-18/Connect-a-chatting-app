@@ -18,3 +18,9 @@ export interface RegisterRequest {
     token: string;
     user: AuthUser;
   }
+
+
+  export interface LoginRequest {
+    identifier: string;
+    password: string;
+  }

@@ -26,3 +26,23 @@ export async function createUser(
     data,
   });
 }
+
+
+export async function findUserByIdentifier(identifier: string) {
+    return prisma.user.findFirst({
+      where: {
+        OR: [
+          { email: identifier },
+          { username: identifier },
+        ],
+      },
+    });
+  }
+
+  export async function findUserById(id: string) {
+    return prisma.user.findUnique({
+      where: {
+        id,
+      },
+    });
+  }

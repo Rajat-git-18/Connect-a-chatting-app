@@ -1,5 +1,5 @@
 export const env = {
-    PORT: Number(process.env.PORT) || 5000,
+    PORT: Number(process.env.PORT) || 5001,
   
     JWT_SECRET: process.env.JWT_SECRET!,
   
