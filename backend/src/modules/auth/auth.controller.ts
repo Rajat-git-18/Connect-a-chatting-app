@@ -49,3 +49,19 @@ export async function register(
       next(error);
     }
   }
+
+
+  export async function logout(
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ) {
+    try {
+      return res.status(200).json({
+        success: true,
+        message: "Logout successful",
+      });
+    } catch (error) {
+      next(error);
+    }
+  }

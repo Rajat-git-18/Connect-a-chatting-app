@@ -123,4 +123,12 @@ export async function getCurrentUser(
       };
   }
 
+
+  export async function logoutUser() {
+    return {
+      success: true,
+      message: "Logout successful",
+    };
+  }
+
   
