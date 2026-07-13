@@ -20,7 +20,9 @@ import { AppError } from "../../errors/AppError.js";
 export async function registerUser(
     data: RegisterRequest
   ): Promise<AuthResponse> {
-    const { displayName, username, email, password } = data;
+    const { displayName, password } = data;
+    const username = data.username.trim().toLowerCase();
+    const email = data.email.trim().toLowerCase();
 
     const existingEmail = await findUserByEmail(email);
 
@@ -67,9 +69,14 @@ export async function registerUser(
   export async function loginUser(
     data: LoginRequest
   ): Promise<AuthResponse> {
-    const { identifier, password } = data;
+    const identifier = data.identifier.trim().toLowerCase();
+    const { password } = data;
 
-const user = await findUserByIdentifier(identifier);
+    console.log("Identifier:", identifier);
+
+    const user = await findUserByIdentifier(identifier);
+  
+    console.log("User Found:", user);
 
 if (!user) {
     throw new AppError(

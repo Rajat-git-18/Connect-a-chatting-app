@@ -6,30 +6,54 @@ import {
 } from "react-native";
 
 import theme from "@/theme";
-import { replace } from "@/utils/navigation";
+import { router } from "expo-router";
+import { getToken, removeToken } from "@/services/auth/auth.service";
+import { getCurrentUser } from "@/services/api/auth.api";
 
 export default function SplashScreen() {
     const [progress, setProgress] = useState(0);
   
     useEffect(() => {
-      const interval = setInterval(() => {
-        setProgress((prev) => {
-          if (prev >= 100) {
-            clearInterval(interval);
-  
-            setTimeout(() => {
-              replace("/login");
-            }, 300);
-  
-            return 100;
+        // Animate Progress Bar
+        const interval = setInterval(() => {
+          setProgress((prev) => {
+            if (prev >= 100) {
+              clearInterval(interval);
+              return 100;
+            }
+      
+            return prev + 2;
+          });
+        }, 40);
+      
+        // Check Authentication
+        const checkAuth = async () => {
+          await new Promise((resolve) => setTimeout(resolve, 2000));
+      
+          const token = await getToken();
+      
+          
+
+          if (!token) {
+              router.replace("/(auth)/login");
+              return;
           }
-  
-          return prev + 2;
-        });
-      }, 50);
-  
-      return () => clearInterval(interval);
-    }, []);
+          
+          try {
+              await getCurrentUser(token);
+          
+              router.replace("/(protected)/home");
+          } catch {
+              await removeToken();
+          
+              router.replace("/(auth)/login");
+          }
+        };
+      
+        checkAuth();
+      
+        return () => clearInterval(interval);
+      }, []);
   
     return (
       <View style={styles.container}>
@@ -127,14 +151,10 @@ const styles = StyleSheet.create({
   },
 
   progressFill: {
-    width: "35%",
-
     height: "100%",
-
     backgroundColor: theme.colors.primary,
-
     borderRadius: theme.radius.full,
-  },
+},
 
   loadingText: {
     ...theme.typography.bodySmall,

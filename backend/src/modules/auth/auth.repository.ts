@@ -2,9 +2,9 @@ import { prisma } from "../../lib/prisma.js";
 import type { Prisma, User } from "@prisma/client";
 
 export async function findUserByEmail(email: string): Promise<User | null> {
-  return prisma.user.findUnique({
+  return prisma.user.findFirst({
     where: {
-      email,
+      email: { equals: email.trim().toLowerCase(), mode: "insensitive" },
     },
   });
 }
@@ -12,9 +12,9 @@ export async function findUserByEmail(email: string): Promise<User | null> {
 export async function findUserByUsername(
   username: string
 ): Promise<User | null> {
-  return prisma.user.findUnique({
+  return prisma.user.findFirst({
     where: {
-      username,
+      username: { equals: username.trim().toLowerCase(), mode: "insensitive" },
     },
   });
 }
@@ -29,15 +29,17 @@ export async function createUser(
 
 
 export async function findUserByIdentifier(identifier: string) {
-    return prisma.user.findFirst({
-      where: {
-        OR: [
-          { email: identifier },
-          { username: identifier },
-        ],
-      },
-    });
-  }
+  const normalized = identifier.trim().toLowerCase();
+
+  return prisma.user.findFirst({
+    where: {
+      OR: [
+        { email: { equals: normalized, mode: "insensitive" } },
+        { username: { equals: normalized, mode: "insensitive" } },
+      ],
+    },
+  });
+}
 
   export async function findUserById(id: string) {
     return prisma.user.findUnique({

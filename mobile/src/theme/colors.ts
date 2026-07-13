@@ -1,7 +1,8 @@
 export const colors = {
     // Brand
-    primary: "#2563EB",
-    primaryLight: "#60A5FA",
+    primary: "#3B82F6",
+    primaryLight: "#93C5FD",
+    primarySoft: "#EFF6FF",
   
     // Backgrounds
     background: "#FFFFFF",

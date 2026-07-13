@@ -1,18 +1,42 @@
 import {
   View,
   Text,
-  TextInput,
   TouchableOpacity,
   StyleSheet,
+  Keyboard,
 } from "react-native";
+import { useState } from "react";
 
 import theme from "@/theme";
 import { goBack } from "@/utils/navigation";
 import AuthHeader from "../components/AuthHeader";
+import AuthScreenShell from "../components/AuthScreenShell";
+import AuthInput from "../components/AuthInput";
 
 export default function ForgotPasswordScreen() {
+  const [email, setEmail] = useState("");
+  const [fieldError, setFieldError] = useState<string | undefined>();
+
+  const handleSubmit = () => {
+    Keyboard.dismiss();
+
+    const trimmed = email.trim();
+    if (!trimmed) {
+      setFieldError("Email is required");
+      return;
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
+      setFieldError("Enter a valid email address");
+      return;
+    }
+
+    setFieldError(undefined);
+    // Reset API wiring comes next
+  };
+
   return (
-    <View style={styles.container}>
+    <AuthScreenShell>
       <AuthHeader />
 
       <Text style={styles.description}>
@@ -20,52 +44,46 @@ export default function ForgotPasswordScreen() {
         password.
       </Text>
 
-      <TextInput
+      <AuthInput
         placeholder="Email"
-        placeholderTextColor={theme.colors.textSecondary}
-        style={styles.input}
+        value={email}
+        onChangeText={(text) => {
+          setEmail(text);
+          setFieldError(undefined);
+        }}
         keyboardType="email-address"
         autoCapitalize="none"
+        autoCorrect={false}
+        textContentType="emailAddress"
+        returnKeyType="done"
+        onSubmitEditing={handleSubmit}
+        error={fieldError}
       />
 
-      <TouchableOpacity style={styles.primaryButton}>
+      <TouchableOpacity
+        style={styles.primaryButton}
+        onPress={handleSubmit}
+        activeOpacity={0.85}
+      >
         <Text style={styles.primaryButtonText}>SEND RESET LINK</Text>
       </TouchableOpacity>
 
       <View style={styles.footer}>
         <Text style={styles.footerText}>Remember your password?</Text>
-
         <TouchableOpacity onPress={() => goBack("/login")}>
           <Text style={styles.link}>Login</Text>
         </TouchableOpacity>
       </View>
-    </View>
+    </AuthScreenShell>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: theme.colors.background,
-    justifyContent: "center",
-    padding: theme.spacing.xl,
-  },
-
   description: {
     ...theme.typography.body,
     color: theme.colors.textSecondary,
     textAlign: "center",
     marginBottom: theme.spacing.xl,
-  },
-
-  input: {
-    height: 56,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    borderRadius: theme.radius.lg,
-    paddingHorizontal: theme.spacing.md,
-    marginBottom: theme.spacing.xl,
-    color: theme.colors.text,
   },
 
   primaryButton: {
