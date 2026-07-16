@@ -2,5 +2,12 @@
 
 A modern, scalable, production-ready messaging application built with React Native and Node.js.
 
-Status:
-🟢 Planning Phase
+Current Progress
+
+✅ Authentication Module
+
+✅ Home UI
+
+✅ Thread Module UI
+
+🚧 Thread Backend (Next)

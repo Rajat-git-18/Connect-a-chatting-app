@@ -7,6 +7,34 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum ThreadStatus {
+  OPEN
+  SOLVED
+  CLOSED
+}
+
+enum ThreadVisibility {
+  PUBLIC
+  FRIENDS
+}
+
+enum ThreadCategory {
+  TECHNOLOGY
+  BUSINESS
+  EDUCATION
+  DESIGN
+  CAREER
+  LIFESTYLE
+  OPEN_DISCUSSION
+}
+
+enum ReactionType {
+  LIKE
+  HELPFUL
+  INSIGHTFUL
+  AGREE
+}
+
 model User {
   id           String   @id @default(cuid())
   username     String   @unique
@@ -18,5 +46,113 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
+  // Relations
+  threads   Thread[]
+  replies   Reply[]
+  reactions Reaction[]
+
   @@map("users")
+}
+
+model Thread {
+  id String @id @default(cuid())
+
+  title      String
+  discussion String
+
+  imageUrl String?
+
+  category ThreadCategory
+
+  visibility ThreadVisibility @default(PUBLIC)
+
+  status ThreadStatus @default(OPEN)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  authorId String
+  author   User   @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  replies Reply[] @relation("ThreadReplies")
+
+  reactions Reaction[]
+
+  tags ThreadTag[]
+
+  @@index([authorId])
+  @@index([createdAt])
+  @@index([status])
+}
+
+model Reply {
+  id String @id @default(cuid())
+
+  content String
+
+  imageUrl String?
+
+  createdAt DateTime @default(now())
+
+  updatedAt DateTime @updatedAt
+
+  threadId String
+
+  thread Thread @relation("ThreadReplies", fields: [threadId], references: [id], onDelete: Cascade)
+
+  authorId String
+
+  author User @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  reactions Reaction[]
+
+  isBestReply Boolean @default(false)
+
+  @@index([threadId])
+  @@index([authorId])
+}
+
+model Reaction {
+  id String @id @default(cuid())
+
+  type ReactionType
+
+  userId String
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  threadId String?
+
+  thread Thread? @relation(fields: [threadId], references: [id], onDelete: Cascade)
+
+  replyId String?
+
+  reply Reply? @relation(fields: [replyId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, threadId, type])
+  @@unique([userId, replyId, type])
+  @@index([threadId])
+  @@index([replyId])
+}
+
+model Tag {
+  id String @id @default(cuid())
+
+  name String @unique
+
+  threads ThreadTag[]
+}
+
+model ThreadTag {
+  threadId String
+
+  tagId String
+
+  thread Thread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+
+  tag Tag @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([threadId, tagId])
 }

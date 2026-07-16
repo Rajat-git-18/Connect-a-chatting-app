@@ -4,6 +4,7 @@ import dotenv from "dotenv";
 
 import authRoutes from "./modules/auth/auth.routes.js";
 import { errorHandler } from "./errors/errorHandler.js";
+import threadRoutes from "./modules/thread/thread.routes.js";
 
 dotenv.config();
 
@@ -13,6 +14,8 @@ app.use(cors());
 app.use(express.json());
 
 app.use("/api/auth", authRoutes);
+
+app.use("/api/threads", threadRoutes);
 
 
 app.get("/", (_, res) => {
