@@ -24,6 +24,7 @@ import {
 import { getAuthErrorMessage } from "../utils/getAuthErrorMessage";
 import { login } from "@/services/api/auth.api";
 import { getToken, saveToken } from "@/services/auth/auth.service";
+import { queryClient } from "@/lib/queryClient";
 
 export default function LoginScreen() {
   const [loginError, setLoginError] = useState<string | null>(null);
@@ -52,6 +53,7 @@ export default function LoginScreen() {
       const response = await login(data);
       await saveToken(response.token);
       await getToken();
+      queryClient.clear();
       router.replace("/(protected)/home");
     } catch (error: unknown) {
       setLoginError(getAuthErrorMessage(error, "login"));

@@ -5,10 +5,17 @@ export default function ProtectedLayout() {
     <Stack
       screenOptions={{
         headerShown: false,
-        animation: "fade",
+        animation: "slide_from_right",
+        gestureEnabled: true,
       }}
     >
-      <Stack.Screen name="home" />
+      <Stack.Screen
+        name="home"
+        options={{
+          animation: "none",
+          gestureEnabled: false,
+        }}
+      />
       <Stack.Screen
         name="create-thread"
         options={{
@@ -25,6 +32,34 @@ export default function ProtectedLayout() {
       />
       <Stack.Screen
         name="my-discussions"
+        options={{
+          animation: "slide_from_right",
+          gestureEnabled: true,
+        }}
+      />
+      <Stack.Screen
+        name="edit-profile"
+        options={{
+          animation: "slide_from_right",
+          gestureEnabled: true,
+        }}
+      />
+      <Stack.Screen
+        name="connection-question"
+        options={{
+          animation: "slide_from_right",
+          gestureEnabled: true,
+        }}
+      />
+      <Stack.Screen
+        name="user/[id]"
+        options={{
+          animation: "slide_from_right",
+          gestureEnabled: true,
+        }}
+      />
+      <Stack.Screen
+        name="connect/[userId]"
         options={{
           animation: "slide_from_right",
           gestureEnabled: true,

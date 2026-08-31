@@ -6,16 +6,18 @@ import {
   StyleSheet,
   StatusBar,
   TouchableOpacity,
+  ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import theme from "@/theme";
 import { goBack, push } from "@/utils/navigation";
 import DiscussionListCard from "../components/DiscussionListCard";
+import { useMyThreads } from "@/hooks/thread/useMyThreads";
 import {
-  MY_DISCUSSIONS,
   filterDiscussions,
   getDiscussionSummary,
+  mapThreadToDiscussion,
   type DiscussionFilter,
 } from "../data/my-discussions.mock";
 
@@ -31,14 +33,21 @@ export default function MyDiscussionsScreen() {
   const insets = useSafeAreaInsets();
   const [filter, setFilter] = useState<DiscussionFilter>("All");
 
+  const { data, isLoading, isError, refetch } = useMyThreads();
+
+  const discussions = useMemo(
+    () => (data ?? []).map(mapThreadToDiscussion),
+    [data]
+  );
+
   const summary = useMemo(
-    () => getDiscussionSummary(MY_DISCUSSIONS),
-    []
+    () => getDiscussionSummary(discussions),
+    [discussions]
   );
 
   const items = useMemo(
-    () => filterDiscussions(MY_DISCUSSIONS, filter),
-    [filter]
+    () => filterDiscussions(discussions, filter),
+    [discussions, filter]
   );
 
   return (
@@ -112,7 +121,25 @@ export default function MyDiscussionsScreen() {
         </ScrollView>
 
         <View style={styles.list}>
-          {items.length === 0 ? (
+          {isLoading ? (
+            <View style={styles.empty}>
+              <ActivityIndicator size="large" color={theme.colors.primary} />
+            </View>
+          ) : isError ? (
+            <View style={styles.empty}>
+              <Text style={styles.emptyTitle}>Couldn't load discussions</Text>
+              <Text style={styles.emptySubtitle}>
+                Check your connection and try again.
+              </Text>
+              <TouchableOpacity
+                style={styles.retryButton}
+                onPress={() => refetch()}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.retryText}>Retry</Text>
+              </TouchableOpacity>
+            </View>
+          ) : items.length === 0 ? (
             <View style={styles.empty}>
               <Text style={styles.emptyTitle}>No discussions here</Text>
               <Text style={styles.emptySubtitle}>
@@ -325,6 +352,20 @@ const styles = StyleSheet.create({
     color: theme.colors.textSecondary,
     marginTop: theme.spacing.sm,
     textAlign: "center",
+  },
+
+  retryButton: {
+    marginTop: theme.spacing.lg,
+    backgroundColor: theme.colors.primary,
+    paddingHorizontal: theme.spacing.xl,
+    paddingVertical: theme.spacing.md,
+    borderRadius: theme.radius.full,
+  },
+
+  retryText: {
+    ...theme.typography.bodySmall,
+    fontWeight: "700",
+    color: theme.colors.white,
   },
 
   fab: {

@@ -17,6 +17,7 @@ import {
 import { getAuthErrorMessage } from "../utils/getAuthErrorMessage";
 import { register } from "@/services/api/auth.api";
 import { saveToken } from "@/services/auth/auth.service";
+import { queryClient } from "@/lib/queryClient";
 
 export default function RegisterScreen() {
   const [registerError, setRegisterError] = useState<string | null>(null);
@@ -48,6 +49,7 @@ export default function RegisterScreen() {
       const { confirmPassword, ...payload } = data;
       const response = await register(payload);
       await saveToken(response.token);
+      queryClient.clear();
       router.replace("/(protected)/home");
     } catch (error: unknown) {
       setRegisterError(getAuthErrorMessage(error, "register"));

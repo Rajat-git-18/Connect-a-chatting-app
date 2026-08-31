@@ -15,6 +15,7 @@ export type ThreadReply = {
   imageUri?: string;
   helpful: number;
   insightful: number;
+  appreciate: number;
   agree: number;
   isBest?: boolean;
 };
@@ -63,6 +64,7 @@ export const THREAD_DETAILS: Record<string, ThreadDetail> = {
           "Ship a concrete decision each week and explain the tradeoff you rejected. People engage when they can argue with a choice — not when they only see a changelog.",
         helpful: 36,
         insightful: 22,
+        appreciate: 0,
         agree: 18,
       },
       {
@@ -74,6 +76,7 @@ export const THREAD_DETAILS: Record<string, ThreadDetail> = {
           "I’ve had the best luck with “one failure + one fix.” It feels human and gives others a reusable playbook without turning into a diary.",
         helpful: 14,
         insightful: 9,
+        appreciate: 0,
         agree: 11,
       },
       {
@@ -85,6 +88,7 @@ export const THREAD_DETAILS: Record<string, ThreadDetail> = {
           "Ask one specific question at the end. Open-ended “thoughts?” rarely converts. “Would you ship this MVP or wait for analytics?” does.",
         helpful: 8,
         insightful: 12,
+        appreciate: 0,
         agree: 6,
       },
     ],
@@ -116,6 +120,7 @@ export const THREAD_DETAILS: Record<string, ThreadDetail> = {
           "A monthly “what I’m learning” note to 8–10 people beats random LinkedIn likes. Consistency signals care without asking for favors.",
         helpful: 41,
         insightful: 33,
+        appreciate: 0,
         agree: 24,
       },
       {
@@ -127,6 +132,7 @@ export const THREAD_DETAILS: Record<string, ThreadDetail> = {
           "Offer context before asking. Share a useful resource related to their work first. Reciprocity compounds quietly.",
         helpful: 19,
         insightful: 15,
+        appreciate: 0,
         agree: 12,
       },
     ],
@@ -158,6 +164,7 @@ export const THREAD_DETAILS: Record<string, ThreadDetail> = {
           "Treat expression as a documented layer: illustration, empty states, and onboarding can bend rules. Core flows stay strict. Document the exceptions so they don’t become tribal knowledge.",
         helpful: 29,
         insightful: 40,
+        appreciate: 0,
         agree: 21,
         isBest: true,
       },
@@ -170,6 +177,7 @@ export const THREAD_DETAILS: Record<string, ThreadDetail> = {
           "We allow one “signature moment” per screen — never more. That constraint keeps personality intentional instead of decorative noise.",
         helpful: 11,
         insightful: 16,
+        appreciate: 0,
         agree: 9,
       },
     ],

@@ -17,6 +17,8 @@ import TrendingDiscussions from "../components/TrendingDiscussions";
 import PeopleYouMayKnow from "../components/PeopleYouMayKnow";
 import GlassTabBar, { type TabKey } from "../components/GlassTabBar";
 import ProfileScreen from "@/features/profile/screens/ProfileScreen";
+import FriendsScreen from "@/features/connections/screens/FriendsScreen";
+import { useThreads } from "@/hooks/thread/useThreads";
 
 function PlaceholderTab({ title, subtitle }: { title: string; subtitle: string }) {
   return (
@@ -31,6 +33,8 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const [activeTab, setActiveTab] = useState<TabKey>("home");
   const [search, setSearch] = useState("");
+  const { data, isLoading } = useThreads();
+  const threads = Array.isArray(data) ? data : [];
 
   return (
     <View style={styles.screen}>
@@ -56,14 +60,21 @@ export default function HomeScreen() {
             onPress={() => push("/(protected)/create-thread")}
           />
           <TrendingDiscussions
+            threads={threads}
+            isLoading={isLoading}
             onPressItem={(threadId) =>
               push(`/(protected)/thread/${threadId}`)
             }
-          />
+            onPressAuthor={(authorId) =>
+              push(`/(protected)/user/${authorId}`)
+            }
+          /> 
           <PeopleYouMayKnow />
         </ScrollView>
       ) : activeTab === "profile" ? (
         <ProfileScreen />
+      ) : activeTab === "friends" ? (
+        <FriendsScreen />
       ) : (
         <View
           style={[
@@ -79,12 +90,6 @@ export default function HomeScreen() {
             <PlaceholderTab
               title="Chats"
               subtitle="Your conversations will appear here."
-            />
-          )}
-          {activeTab === "friends" && (
-            <PlaceholderTab
-              title="Friends"
-              subtitle="Find and manage your connections."
             />
           )}
         </View>

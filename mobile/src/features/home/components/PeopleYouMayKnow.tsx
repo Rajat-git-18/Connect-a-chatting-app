@@ -1,18 +1,41 @@
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from "react-native";
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  ScrollView,
+  ActivityIndicator,
+} from "react-native";
 import theme from "@/theme";
+import { push } from "@/utils/navigation";
+import { getInitials } from "@/utils/userDisplay";
+import { useConnectionSuggestions } from "@/hooks/connections/useConnectionSuggestions";
 
-const PEOPLE = [
-  { id: "1", name: "Aanya Mehta", handle: "@aanya", initials: "AM" },
-  { id: "2", name: "Kabir Shah", handle: "@kabir", initials: "KS" },
-  { id: "3", name: "Mia Chen", handle: "@mia", initials: "MC" },
-  { id: "4", name: "Noah Patel", handle: "@noah", initials: "NP" },
-];
+export default function PeopleYouMayKnow() {
+  const { data: people = [], isLoading, isError } = useConnectionSuggestions();
 
-type PeopleYouMayKnowProps = {
-  onConnect?: (id: string) => void;
-};
+  if (isLoading) {
+    return (
+      <View style={styles.section}>
+        <Text style={styles.heading}>People You May Know</Text>
+        <ActivityIndicator color={theme.colors.primary} />
+      </View>
+    );
+  }
 
-export default function PeopleYouMayKnow({ onConnect }: PeopleYouMayKnowProps) {
+  if (isError || people.length === 0) {
+    return (
+      <View style={styles.section}>
+        <Text style={styles.heading}>People You May Know</Text>
+        <Text style={styles.emptyText}>
+          {isError
+            ? "Couldn't load suggestions right now."
+            : "No new people to connect with yet. Set your connection question on Profile to get started."}
+        </Text>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.section}>
       <Text style={styles.heading}>People You May Know</Text>
@@ -22,22 +45,30 @@ export default function PeopleYouMayKnow({ onConnect }: PeopleYouMayKnowProps) {
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.row}
       >
-        {PEOPLE.map((person) => (
+        {people.map((person) => (
           <View key={person.id} style={styles.card}>
-            <View style={styles.avatar}>
-              <Text style={styles.initials}>{person.initials}</Text>
-            </View>
+            <TouchableOpacity
+              style={styles.profileTapArea}
+              onPress={() => push(`/(protected)/user/${person.id}`)}
+              activeOpacity={0.85}
+            >
+              <View style={styles.avatar}>
+                <Text style={styles.initials}>
+                  {getInitials(person.displayName)}
+                </Text>
+              </View>
 
-            <Text style={styles.name} numberOfLines={1}>
-              {person.name}
-            </Text>
-            <Text style={styles.handle} numberOfLines={1}>
-              {person.handle}
-            </Text>
+              <Text style={styles.name} numberOfLines={1}>
+                {person.displayName}
+              </Text>
+              <Text style={styles.handle} numberOfLines={1}>
+                @{person.username}
+              </Text>
+            </TouchableOpacity>
 
             <TouchableOpacity
               style={styles.connectButton}
-              onPress={() => onConnect?.(person.id)}
+              onPress={() => push(`/(protected)/connect/${person.id}`)}
               activeOpacity={0.85}
             >
               <Text style={styles.connectText}>Connect</Text>
@@ -60,6 +91,12 @@ const styles = StyleSheet.create({
     marginBottom: theme.spacing.md,
   },
 
+  emptyText: {
+    ...theme.typography.body,
+    color: theme.colors.textSecondary,
+    lineHeight: 22,
+  },
+
   row: {
     gap: theme.spacing.md,
     paddingRight: theme.spacing.md,
@@ -74,6 +111,11 @@ const styles = StyleSheet.create({
     padding: theme.spacing.md,
     alignItems: "center",
     ...theme.shadows.card,
+  },
+
+  profileTapArea: {
+    alignItems: "center",
+    width: "100%",
   },
 
   avatar: {

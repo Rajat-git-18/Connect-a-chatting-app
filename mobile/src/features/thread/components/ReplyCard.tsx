@@ -1,13 +1,46 @@
 import { View, Text, TouchableOpacity, StyleSheet, Image } from "react-native";
 import theme from "@/theme";
-import type { ThreadReply } from "../data/thread-detail.mock";
+import type { ThreadReactionKey, ThreadReply } from "../data/thread-detail.mock";
+
+const REACTION_OPTIONS: {
+  key: ThreadReactionKey;
+  emoji: string;
+  label: string;
+}[] = [
+  { key: "helpful", emoji: "👍", label: "Helpful" },
+  { key: "insightful", emoji: "💡", label: "Insightful" },
+  { key: "appreciate", emoji: "❤️", label: "Appreciate" },
+  { key: "agree", emoji: "👏", label: "Agree" },
+];
 
 type ReplyCardProps = {
   reply: ThreadReply;
-  onReply?: () => void;
+  selectedReactions?: Partial<Record<ThreadReactionKey, boolean>>;
+  pickerOpen?: boolean;
+  onTogglePicker?: () => void;
+  onSelectReaction?: (key: ThreadReactionKey) => void;
+  reacting?: boolean;
 };
 
-export default function ReplyCard({ reply, onReply }: ReplyCardProps) {
+export default function ReplyCard({
+  reply,
+  selectedReactions = {},
+  pickerOpen = false,
+  onTogglePicker,
+  onSelectReaction,
+  reacting = false,
+}: ReplyCardProps) {
+  const counts: Record<ThreadReactionKey, number> = {
+    helpful: reply.helpful,
+    insightful: reply.insightful,
+    appreciate: reply.appreciate ?? 0,
+    agree: reply.agree,
+  };
+
+  const visibleReactions = REACTION_OPTIONS.filter(
+    (item) => counts[item.key] > 0 || selectedReactions[item.key]
+  );
+
   return (
     <View style={styles.card}>
       <View style={styles.authorRow}>
@@ -28,26 +61,76 @@ export default function ReplyCard({ reply, onReply }: ReplyCardProps) {
 
       <View style={styles.actions}>
         <View style={styles.reactions}>
-          <View style={styles.reactionPill}>
-            <Text style={styles.reactionText}>👍 {reply.helpful}</Text>
-          </View>
-          <View style={styles.reactionPill}>
-            <Text style={styles.reactionText}>💡 {reply.insightful}</Text>
-          </View>
-          <View style={styles.reactionPill}>
-            <Text style={styles.reactionText}>👏 {reply.agree}</Text>
-          </View>
+          {visibleReactions.length === 0 ? (
+            <Text style={styles.noReactions}>No reactions yet</Text>
+          ) : (
+            visibleReactions.map((item) => {
+              const active = Boolean(selectedReactions[item.key]);
+
+              return (
+                <View
+                  key={item.key}
+                  style={[styles.reactionPill, active && styles.reactionPillActive]}
+                >
+                  <Text
+                    style={[
+                      styles.reactionText,
+                      active && styles.reactionTextActive,
+                    ]}
+                  >
+                    {item.emoji} {counts[item.key]}
+                  </Text>
+                </View>
+              );
+            })
+          )}
         </View>
 
         <TouchableOpacity
-          onPress={onReply}
+          onPress={onTogglePicker}
           activeOpacity={0.85}
           accessibilityRole="button"
-          accessibilityLabel="Reply to this discussion"
+          accessibilityLabel="React to this reply"
         >
-          <Text style={styles.replyLink}>Reply</Text>
+          <Text style={styles.replyLink}>
+            {pickerOpen ? "Close" : "Reply"}
+          </Text>
         </TouchableOpacity>
       </View>
+
+      {pickerOpen ? (
+        <View style={styles.picker}>
+          <Text style={styles.pickerLabel}>React with</Text>
+          <View style={styles.pickerRow}>
+            {REACTION_OPTIONS.map((item) => {
+              const active = Boolean(selectedReactions[item.key]);
+
+              return (
+                <TouchableOpacity
+                  key={item.key}
+                  style={[styles.pickerChip, active && styles.pickerChipActive]}
+                  onPress={() => onSelectReaction?.(item.key)}
+                  disabled={reacting}
+                  activeOpacity={0.85}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: active, disabled: reacting }}
+                  accessibilityLabel={item.label}
+                >
+                  <Text style={styles.pickerEmoji}>{item.emoji}</Text>
+                  <Text
+                    style={[
+                      styles.pickerChipText,
+                      active && styles.pickerChipTextActive,
+                    ]}
+                  >
+                    {item.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -133,6 +216,11 @@ const styles = StyleSheet.create({
     flex: 1,
   },
 
+  noReactions: {
+    ...theme.typography.caption,
+    color: theme.colors.textTertiary,
+  },
+
   reactionPill: {
     paddingHorizontal: theme.spacing.sm + 2,
     paddingVertical: 6,
@@ -142,10 +230,20 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.border,
   },
 
+  reactionPillActive: {
+    backgroundColor: theme.colors.primarySoft,
+    borderColor: theme.colors.primaryLight,
+  },
+
   reactionText: {
     ...theme.typography.caption,
     color: theme.colors.textSecondary,
     fontWeight: "500",
+  },
+
+  reactionTextActive: {
+    color: theme.colors.primary,
+    fontWeight: "700",
   },
 
   replyLink: {
@@ -153,5 +251,59 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: theme.colors.primary,
     marginLeft: theme.spacing.sm,
+  },
+
+  picker: {
+    marginTop: theme.spacing.md,
+    paddingTop: theme.spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.border,
+    gap: theme.spacing.sm,
+  },
+
+  pickerLabel: {
+    ...theme.typography.caption,
+    fontWeight: "600",
+    color: theme.colors.textTertiary,
+    textTransform: "uppercase",
+    letterSpacing: 0.3,
+  },
+
+  pickerRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: theme.spacing.sm,
+  },
+
+  pickerChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+    borderRadius: theme.radius.full,
+    backgroundColor: theme.colors.surface,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+
+  pickerChipActive: {
+    backgroundColor: theme.colors.primarySoft,
+    borderColor: theme.colors.primaryLight,
+  },
+
+  pickerEmoji: {
+    fontSize: 14,
+  },
+
+  pickerChipText: {
+    ...theme.typography.caption,
+    fontWeight: "500",
+    color: theme.colors.textSecondary,
+  },
+
+  pickerChipTextActive: {
+    color: theme.colors.primary,
+    fontWeight: "700",
   },
 });

@@ -21,26 +21,46 @@ import ImageUploadCard from "../components/ImageUploadCard";
 import TagChips from "../components/TagChips";
 import VisibilitySelector from "../components/VisibilitySelector";
 import type {
-  ThreadCategory,
-  ThreadVisibility,
+  ThreadCategory as UiThreadCategory,
+  ThreadVisibility as UiThreadVisibility,
 } from "../constants/thread.constants";
+import type {
+  ThreadCategory as ApiThreadCategory,
+  ThreadVisibility as ApiThreadVisibility,
+} from "@/types/thread.types";
+import { useCreateThread } from "@/hooks/thread/useCreateThread";
+
+const CATEGORY_TO_API: Record<UiThreadCategory, ApiThreadCategory> = {
+  Technology: "TECHNOLOGY",
+  Career: "CAREER",
+  Business: "BUSINESS",
+  Education: "EDUCATION",
+  Design: "DESIGN",
+  Lifestyle: "LIFESTYLE",
+  "Open Discussion": "OPEN_DISCUSSION",
+};
+
+const VISIBILITY_TO_API: Record<UiThreadVisibility, ApiThreadVisibility> = {
+  public: "PUBLIC",
+  friends: "FRIENDS",
+};
 
 export default function CreateThreadScreen() {
   const insets = useSafeAreaInsets();
 
   const [title, setTitle] = useState("");
-  const [category, setCategory] = useState<ThreadCategory | null>(null);
+  const [category, setCategory] = useState<UiThreadCategory | null>(null);
   const [discussion, setDiscussion] = useState("");
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [tags, setTags] = useState<string[]>([]);
-  const [visibility, setVisibility] = useState<ThreadVisibility>("public");
-  const [submitting, setSubmitting] = useState(false);
+  const [visibility, setVisibility] = useState<UiThreadVisibility>("public");
+  const { mutateAsync: createThread, isPending } = useCreateThread();
 
   const canSubmit =
     title.trim().length > 0 &&
     category !== null &&
     discussion.trim().length > 0 &&
-    !submitting;
+    !isPending;
 
   const handlePost = async () => {
     Keyboard.dismiss();
@@ -54,19 +74,27 @@ export default function CreateThreadScreen() {
     }
 
     try {
-      setSubmitting(true);
+      await createThread({
+        title: title.trim(),
+        discussion: discussion.trim(),
+        category: CATEGORY_TO_API[category],
+        visibility: VISIBILITY_TO_API[visibility],
+        tags,
+      });
 
-      // UI-only for now — API wiring comes next
-      await new Promise((resolve) => setTimeout(resolve, 400));
-
-      Alert.alert("Thread ready", "Your conversation has been prepared.", [
+      Alert.alert("Success", "Thread created successfully!", [
         {
-          text: "Done",
+          text: "OK",
           onPress: () => goBack("/(protected)/home"),
         },
       ]);
-    } finally {
-      setSubmitting(false);
+    } catch (error) {
+      console.error(error);
+
+      Alert.alert(
+        "Error",
+        "Failed to create thread. Please try again."
+      );
     }
   };
 
@@ -181,7 +209,7 @@ export default function CreateThreadScreen() {
             accessibilityLabel="Post Thread"
           >
             <Text style={styles.submitText}>
-              {submitting ? "Posting..." : "Post Thread"}
+              {isPending ? "Posting..." : "Post Thread"}
             </Text>
           </TouchableOpacity>
         </ScrollView>

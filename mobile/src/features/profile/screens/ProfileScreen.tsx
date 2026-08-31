@@ -12,6 +12,9 @@ import { router } from "expo-router";
 import theme from "@/theme";
 import { push } from "@/utils/navigation";
 import { removeToken } from "@/services/auth/auth.service";
+import { queryClient } from "@/lib/queryClient";
+import { useProfile } from "@/hooks/profile/useProfile";
+import { useGetToKnowMe } from "@/hooks/connections/useGetToKnowMe";
 
 type MenuItem = {
   key: string;
@@ -22,23 +25,18 @@ type MenuItem = {
   destructive?: boolean;
 };
 
-type ProfileScreenProps = {
-  name?: string;
-  username?: string;
-  email?: string;
-  bio?: string;
-};
-
-export default function ProfileScreen({
-  name = "Rajat Gupta",
-  username = "rajat",
-  email = "rajat@connect.app",
-  bio = "Building Connect — meaningful discussions, not noise.",
-}: ProfileScreenProps) {
+export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
+  const {
+    data: profile,
+    isLoading,
+    isError,
+  } = useProfile();
+  const { data: getToKnowMe, isLoading: isQuestionLoading } = useGetToKnowMe();
 
   const handleLogout = async () => {
     await removeToken();
+    queryClient.clear();
     router.replace("/(auth)/login");
   };
 
@@ -66,6 +64,34 @@ export default function ProfileScreen({
     },
   ];
 
+  if (isLoading) {
+    return (
+      <View
+        style={{
+          flex: 1,
+          justifyContent: "center",
+          alignItems: "center",
+        }}
+      >
+        <Text>Loading...</Text>
+      </View>
+    );
+  }
+
+  if (isError || !profile) {
+    return (
+      <View
+        style={{
+          flex: 1,
+          justifyContent: "center",
+          alignItems: "center",
+        }}
+      >
+        <Text>Unable to load profile.</Text>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.screen}>
       <StatusBar barStyle="dark-content" />
@@ -87,20 +113,36 @@ export default function ProfileScreen({
         </Text>
 
         <View style={styles.identityCard}>
+          <TouchableOpacity
+            style={styles.editButton}
+            onPress={() => push("/(protected)/edit-profile")}
+            activeOpacity={0.85}
+            accessibilityRole="button"
+            accessibilityLabel="Edit profile"
+          >
+            <Ionicons
+              name="create-outline"
+              size={18}
+              color={theme.colors.primary}
+            />
+          </TouchableOpacity>
+
           <View style={styles.avatar}>
             <Text style={styles.avatarText}>
-              {name
+              {profile.displayName
                 .split(" ")
-                .map((part) => part[0])
+                .map((part: string) => part[0])
                 .join("")
                 .slice(0, 2)
                 .toUpperCase()}
             </Text>
           </View>
 
-          <Text style={styles.name}>{name}</Text>
-          <Text style={styles.username}>@{username}</Text>
-          <Text style={styles.bio}>{bio}</Text>
+          <Text style={styles.name}>{profile.displayName}</Text>
+          <Text style={styles.username}>@{profile.username}</Text>
+          {profile.bio ? (
+            <Text style={styles.bio}>{profile.bio}</Text>
+          ) : null}
 
           <View style={styles.metaRow}>
             <View style={styles.metaItem}>
@@ -109,27 +151,70 @@ export default function ProfileScreen({
                 size={14}
                 color={theme.colors.textSecondary}
               />
-              <Text style={styles.metaText}>{email}</Text>
+              <Text style={styles.metaText}>{profile.email}</Text>
             </View>
           </View>
 
           <View style={styles.statsRow}>
             <View style={styles.stat}>
-              <Text style={styles.statValue}>12</Text>
+              <Text style={styles.statValue}>{profile.threadsCount}</Text>
               <Text style={styles.statLabel}>Threads</Text>
             </View>
             <View style={styles.statDivider} />
             <View style={styles.stat}>
-              <Text style={styles.statValue}>48</Text>
+              <Text style={styles.statValue}>{profile.repliesCount}</Text>
               <Text style={styles.statLabel}>Replies</Text>
             </View>
             <View style={styles.statDivider} />
             <View style={styles.stat}>
-              <Text style={styles.statValue}>36</Text>
-              <Text style={styles.statLabel}>Friends</Text>
+              <Text style={styles.statValue}>{profile.reactionsCount}</Text>
+              <Text style={styles.statLabel}>Reactions</Text>
             </View>
           </View>
         </View>
+
+        <TouchableOpacity
+          style={styles.connectionCard}
+          onPress={() => push("/(protected)/connection-question")}
+          activeOpacity={0.85}
+          accessibilityRole="button"
+          accessibilityLabel="Edit connection question"
+        >
+          <View style={styles.connectionHeader}>
+            <View style={styles.connectionIcon}>
+              <Ionicons
+                name="help-circle-outline"
+                size={20}
+                color={theme.colors.primary}
+              />
+            </View>
+            <View style={styles.connectionCopy}>
+              <Text style={styles.connectionTitle}>Connection Question</Text>
+              <Text style={styles.connectionSubtitle}>
+                Others answer this before sending a request
+              </Text>
+            </View>
+            <Ionicons
+              name="chevron-forward"
+              size={18}
+              color={theme.colors.textTertiary}
+            />
+          </View>
+
+          <View style={styles.connectionPreview}>
+            {isQuestionLoading ? (
+              <Text style={styles.connectionPreviewText}>Loading...</Text>
+            ) : getToKnowMe?.question ? (
+              <Text style={styles.connectionPreviewQuestion}>
+                {getToKnowMe.question}
+              </Text>
+            ) : (
+              <Text style={styles.connectionPreviewEmpty}>
+                Tap to set your question
+              </Text>
+            )}
+          </View>
+        </TouchableOpacity>
 
         <View style={styles.menuCard}>
           {menuItems.map((item, index) => (
@@ -212,6 +297,7 @@ const styles = StyleSheet.create({
   },
 
   identityCard: {
+    position: "relative",
     backgroundColor: theme.colors.white,
     borderRadius: theme.radius.lg,
     borderWidth: 1,
@@ -220,6 +306,20 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: theme.spacing.lg,
     ...theme.shadows.soft,
+  },
+
+  editButton: {
+    position: "absolute",
+    top: theme.spacing.md,
+    right: theme.spacing.md,
+    width: 36,
+    height: 36,
+    borderRadius: theme.radius.full,
+    backgroundColor: theme.colors.primarySoft,
+    borderWidth: 1,
+    borderColor: theme.colors.primaryLight,
+    alignItems: "center",
+    justifyContent: "center",
   },
 
   avatar: {
@@ -308,6 +408,73 @@ const styles = StyleSheet.create({
     width: 1,
     height: 28,
     backgroundColor: theme.colors.border,
+  },
+
+  connectionCard: {
+    backgroundColor: theme.colors.white,
+    borderRadius: theme.radius.lg,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    padding: theme.spacing.lg,
+    marginBottom: theme.spacing.lg,
+    ...theme.shadows.soft,
+  },
+
+  connectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: theme.spacing.md,
+  },
+
+  connectionIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: theme.radius.md,
+    backgroundColor: theme.colors.primarySoft,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  connectionCopy: {
+    flex: 1,
+  },
+
+  connectionTitle: {
+    ...theme.typography.body,
+    fontWeight: "600",
+    color: theme.colors.text,
+  },
+
+  connectionSubtitle: {
+    ...theme.typography.caption,
+    color: theme.colors.textSecondary,
+    marginTop: 2,
+  },
+
+  connectionPreview: {
+    marginTop: theme.spacing.md,
+    padding: theme.spacing.md,
+    borderRadius: theme.radius.md,
+    backgroundColor: theme.colors.surface,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+
+  connectionPreviewQuestion: {
+    ...theme.typography.body,
+    color: theme.colors.text,
+    lineHeight: 22,
+  },
+
+  connectionPreviewEmpty: {
+    ...theme.typography.body,
+    color: theme.colors.textTertiary,
+    fontStyle: "italic",
+  },
+
+  connectionPreviewText: {
+    ...theme.typography.body,
+    color: theme.colors.textSecondary,
   },
 
   menuCard: {

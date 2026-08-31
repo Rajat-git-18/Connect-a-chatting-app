@@ -72,11 +72,7 @@ export async function registerUser(
     const identifier = data.identifier.trim().toLowerCase();
     const { password } = data;
 
-    console.log("Identifier:", identifier);
-
     const user = await findUserByIdentifier(identifier);
-  
-    console.log("User Found:", user);
 
 if (!user) {
     throw new AppError(

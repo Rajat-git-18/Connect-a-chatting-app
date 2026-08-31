@@ -3,9 +3,11 @@ import { type Request, type Response } from "express";
 import {
   createThreadService,
   getAllThreadsService,
+  getMyThreadsService,
   getThreadByIdService,
   createReplyService,
   reactToThreadService,
+  reactToReplyService,
   resolveThreadService,
   deleteThreadService,
 } from "./thread.service.js";
@@ -21,7 +23,7 @@ export async function createThread(
     );
 
     if (!result.success) {
-      return res.status(result.status).json({
+      return res.status(400).json({
         success: false,
         message: result.message,
       });
@@ -39,6 +41,17 @@ export async function createThread(
     res.json(result);
   }
 
+  export async function getMyThreads(
+    req: Request,
+    res: Response
+  ) {
+    const result = await getMyThreadsService(
+      req.user?.userId as string
+    );
+
+    res.json(result);
+  }
+
   export async function getThreadById(
     req: Request,
     res: Response
@@ -48,7 +61,7 @@ export async function createThread(
     );
   
     if (!result.success) {
-      return res.status(result.status).json({
+      return res.status(400).json({
         success: false,
         message: result.message,
       });
@@ -83,6 +96,27 @@ export async function createThread(
   ) {
     const result = await reactToThreadService(
       req.params.threadId as string,
+      req.user?.userId as string,
+      req.body
+    );
+
+    if (!result.success) {
+      return res.status(400).json({
+        success: false,
+        message: result.message,
+      });
+    }
+
+    res.status(201).json(result);
+  }
+
+  export async function reactToReply(
+    req: Request,
+    res: Response
+  ) {
+    const result = await reactToReplyService(
+      req.params.threadId as string,
+      req.params.replyId as string,
       req.user?.userId as string,
       req.body
     );

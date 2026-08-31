@@ -1,12 +1,13 @@
+import "dotenv/config";
 import express from "express";
 import cors from "cors";
-import dotenv from "dotenv";
 
 import authRoutes from "./modules/auth/auth.routes.js";
 import { errorHandler } from "./errors/errorHandler.js";
 import threadRoutes from "./modules/thread/thread.routes.js";
-
-dotenv.config();
+import userRoutes from "./modules/user/user.routes.js";
+import getToKnowMeRoutes from "./modules/getToKnowMe/getToKnowMe.routes.js";
+import connectionRoutes from "./modules/connection/connection.routes.js";
 
 const app = express();
 
@@ -16,6 +17,12 @@ app.use(express.json());
 app.use("/api/auth", authRoutes);
 
 app.use("/api/threads", threadRoutes);
+
+app.use("/api/users", userRoutes);
+
+app.use("/api/get-to-know-me", getToKnowMeRoutes);
+
+app.use("/api/connections", connectionRoutes);
 
 
 app.get("/", (_, res) => {

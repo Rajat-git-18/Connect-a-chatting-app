@@ -7,6 +7,7 @@ import {
   findTagsByNames,
   findThreadById,
   findAllThreads,
+  findThreadsByAuthor,
   createReply,
   findReplyById,
   markBestReply,
@@ -14,7 +15,10 @@ import {
   updateThreadStatus,
   deleteThread,
   findReaction,
+  findReplyReaction,
   createReaction,
+  createReplyReaction,
+  deleteReaction,
 } from "./thread.repository.js";
 
 import {
@@ -93,6 +97,16 @@ export async function createThreadService(
   export async function getAllThreadsService() {
     const threads = await findAllThreads();
   
+    return {
+      success: true,
+      message: "Threads fetched successfully.",
+      data: threads,
+    };
+  }
+
+  export async function getMyThreadsService(userId: string) {
+    const threads = await findThreadsByAuthor(userId);
+
     return {
       success: true,
       message: "Threads fetched successfully.",
@@ -184,12 +198,19 @@ export async function createThreadService(
       threadId,
       data.type
     );
-  
+
+    // Toggle: second tap removes the reaction.
     if (existingReaction) {
-      throw new AppError(
-        409,
-        "You have already added this reaction."
-      );
+      await deleteReaction(existingReaction.id);
+
+      return {
+        success: true,
+        message: "Reaction removed successfully.",
+        data: {
+          action: "removed" as const,
+          type: data.type,
+        },
+      };
     }
   
     const reaction = await createReaction(
@@ -201,7 +222,65 @@ export async function createThreadService(
     return {
       success: true,
       message: "Reaction added successfully.",
-      data: reaction,
+      data: {
+        action: "added" as const,
+        type: data.type,
+        reaction,
+      },
+    };
+  }
+
+  export async function reactToReplyService(
+    threadId: string,
+    replyId: string,
+    userId: string,
+    data: ReactionRequest
+  ) {
+    const thread = await findThreadById(threadId);
+
+    if (!thread) {
+      throw new AppError(404, "Thread not found.");
+    }
+
+    const reply = await findReplyById(replyId);
+
+    if (!reply) {
+      throw new AppError(404, "Reply not found.");
+    }
+
+    if (reply.threadId !== threadId) {
+      throw new AppError(400, "Reply does not belong to this thread.");
+    }
+
+    const existingReaction = await findReplyReaction(
+      userId,
+      replyId,
+      data.type
+    );
+
+    if (existingReaction) {
+      await deleteReaction(existingReaction.id);
+
+      return {
+        success: true,
+        message: "Reaction removed successfully.",
+        data: {
+          action: "removed" as const,
+          type: data.type,
+        },
+      };
+    }
+
+    const reaction = await createReplyReaction(userId, replyId, data.type);
+
+    return {
+      success: true,
+      message: "Reaction added successfully.",
+      data: {
+        action: "added" as const,
+        type: data.type,
+        reaction,
+      },
     };
   }
 

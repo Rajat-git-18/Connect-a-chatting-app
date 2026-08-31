@@ -1,4 +1,4 @@
-import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
+import { View, Text, StyleSheet } from "react-native";
 import theme from "@/theme";
 import type { ThreadReactionKey } from "../data/thread-detail.mock";
 
@@ -15,15 +15,10 @@ const REACTIONS: {
 
 type ReactionBarProps = {
   reactions: Record<ThreadReactionKey, number>;
-  selected?: ThreadReactionKey | null;
-  onSelect: (key: ThreadReactionKey) => void;
 };
 
-export default function ReactionBar({
-  reactions,
-  selected,
-  onSelect,
-}: ReactionBarProps) {
+/** Display-only summary of reaction totals for the thread. */
+export default function ReactionBar({ reactions }: ReactionBarProps) {
   const total = Object.values(reactions).reduce((sum, n) => sum + n, 0);
 
   return (
@@ -35,26 +30,14 @@ export default function ReactionBar({
 
       <View style={styles.row}>
         {REACTIONS.map((item) => {
-          const active = selected === item.key;
+          const count = reactions[item.key] ?? 0;
 
           return (
-            <TouchableOpacity
-              key={item.key}
-              style={[styles.chip, active && styles.chipActive]}
-              onPress={() => onSelect(item.key)}
-              activeOpacity={0.85}
-              accessibilityRole="button"
-              accessibilityState={{ selected: active }}
-              accessibilityLabel={`${item.label}, ${reactions[item.key]}`}
-            >
+            <View key={item.key} style={styles.chip}>
               <Text style={styles.emoji}>{item.emoji}</Text>
-              <Text style={[styles.label, active && styles.labelActive]}>
-                {item.label}
-              </Text>
-              <Text style={[styles.count, active && styles.countActive]}>
-                {reactions[item.key]}
-              </Text>
-            </TouchableOpacity>
+              <Text style={styles.label}>{item.label}</Text>
+              <Text style={styles.count}>{count}</Text>
+            </View>
           );
         })}
       </View>
@@ -112,11 +95,6 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.border,
   },
 
-  chipActive: {
-    backgroundColor: theme.colors.primarySoft,
-    borderColor: theme.colors.primaryLight,
-  },
-
   emoji: {
     fontSize: 14,
   },
@@ -128,18 +106,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
 
-  labelActive: {
-    color: theme.colors.primary,
-    fontWeight: "600",
-  },
-
   count: {
     ...theme.typography.caption,
     fontWeight: "600",
     color: theme.colors.textTertiary,
-  },
-
-  countActive: {
-    color: theme.colors.primary,
   },
 });

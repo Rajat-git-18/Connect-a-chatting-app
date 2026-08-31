@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -11,6 +11,7 @@ import {
   Alert,
   Keyboard,
   Share,
+  ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams } from "expo-router";
@@ -23,14 +24,17 @@ import ReactionBar from "../components/ReactionBar";
 import BestReplyCard from "../components/BestReplyCard";
 import ReplyCard from "../components/ReplyCard";
 import ReplyComposer from "../components/ReplyComposer";
+import { useThread } from "@/hooks/thread/useThread";
+import { useCreateReply } from "@/hooks/thread/useCreateReply";
+import { useReactToReply } from "@/hooks/thread/useReactToReply";
+import { getUserIdFromToken } from "@/services/auth/auth.service";
+import type { ReplySort, ThreadReactionKey } from "../data/thread-detail.mock";
 import {
-  getDefaultThreadDetail,
-  getThreadDetail,
-  type ReplySort,
-  type ThreadReactionKey,
-  type ThreadReply,
-  type ThreadStatus,
-} from "../data/thread-detail.mock";
+  API_TO_UI_REACTION,
+  mapApiThreadToUi,
+  sortReplies,
+  UI_TO_API_REACTION,
+} from "../utils/mapThreadDetail";
 
 const SORT_OPTIONS: { key: ReplySort; label: string }[] = [
   { key: "most_helpful", label: "Most Helpful" },
@@ -38,76 +42,101 @@ const SORT_OPTIONS: { key: ReplySort; label: string }[] = [
   { key: "oldest", label: "Oldest" },
 ];
 
-function sortReplies(replies: ThreadReply[], sort: ReplySort): ThreadReply[] {
-  const copy = [...replies];
-
-  if (sort === "most_helpful") {
-    return copy.sort((a, b) => b.helpful - a.helpful);
-  }
-
-  if (sort === "newest") {
-    return copy;
-  }
-
-  return copy.reverse();
-}
+type ReplyReactionState = {
+  counts: Record<ThreadReactionKey, number>;
+  selected: Partial<Record<ThreadReactionKey, boolean>>;
+};
 
 export default function ThreadDetailsScreen() {
   const insets = useSafeAreaInsets();
-  const { id, resolved, bestReplyId, solvedBy } = useLocalSearchParams<{
-    id?: string;
-    resolved?: string;
-    bestReplyId?: string;
-    solvedBy?: string;
-  }>();
+  const { id } = useLocalSearchParams<{ id?: string }>();
+  const threadId = Array.isArray(id) ? id[0] : id;
 
-  const thread = useMemo(
-    () => (id ? getThreadDetail(id) : null) ?? getDefaultThreadDetail(),
-    [id]
-  );
+  const {
+    data: apiThread,
+    isLoading,
+    isError,
+    refetch,
+  } = useThread(threadId ?? "");
 
-  const [status, setStatus] = useState<ThreadStatus>(thread.status);
-  const [activeBestReplyId, setActiveBestReplyId] = useState<string | null>(
-    () => thread.replies.find((reply) => reply.isBest)?.id ?? null
+  const { mutateAsync: submitReply, isPending: isReplying } = useCreateReply(
+    threadId ?? ""
   );
-  const [solverName, setSolverName] = useState<string | null>(
-    thread.status === "Solved" ? thread.authorName : null
-  );
+  const { mutateAsync: reactToReply } = useReactToReply(threadId ?? "");
 
   const [sort, setSort] = useState<ReplySort>("most_helpful");
-  const [selectedReaction, setSelectedReaction] =
-    useState<ThreadReactionKey | null>(null);
-  const [reactions, setReactions] = useState(thread.reactions);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [pickerReplyId, setPickerReplyId] = useState<string | null>(null);
+  const [replyReactions, setReplyReactions] = useState<
+    Record<string, ReplyReactionState>
+  >({});
   const [replyDraft, setReplyDraft] = useState("");
-  const [submitting, setSubmitting] = useState(false);
+
+  // Tracks in-flight reaction toggles per `${replyId}:${key}` so a rapid
+  // second tap on the same emoji can't fire an out-of-order request.
+  const inFlightReactions = useRef<Set<string>>(new Set());
+
+  const thread = useMemo(
+    () => (apiThread ? mapApiThreadToUi(apiThread) : null),
+    [apiThread]
+  );
 
   useEffect(() => {
-    setStatus(thread.status);
-    setActiveBestReplyId(
-      thread.replies.find((reply) => reply.isBest)?.id ?? null
-    );
-    setSolverName(thread.status === "Solved" ? thread.authorName : null);
-    setReactions(thread.reactions);
-  }, [thread]);
+    getUserIdFromToken().then(setUserId);
+  }, []);
 
+  // Sync per-reply reaction counts + current user's selections from API.
   useEffect(() => {
-    if (resolved !== "1" || !bestReplyId) return;
+    if (!apiThread) return;
 
-    setStatus("Solved");
-    setActiveBestReplyId(
-      Array.isArray(bestReplyId) ? bestReplyId[0] : bestReplyId
-    );
-    setSolverName(
-      Array.isArray(solvedBy) ? solvedBy[0] : solvedBy ?? "Rajat Gupta"
-    );
-  }, [resolved, bestReplyId, solvedBy]);
+    const next: Record<string, ReplyReactionState> = {};
+
+    for (const reply of apiThread.replies ?? []) {
+      const selected: Partial<Record<ThreadReactionKey, boolean>> = {};
+
+      if (userId) {
+        for (const reaction of reply.reactions ?? []) {
+          if (reaction.userId === userId) {
+            selected[API_TO_UI_REACTION[reaction.type]] = true;
+          }
+        }
+      }
+
+      next[reply.id] = {
+        selected,
+        counts: {
+          helpful: (reply.reactions ?? []).filter((r) => r.type === "HELPFUL")
+            .length,
+          insightful: (reply.reactions ?? []).filter(
+            (r) => r.type === "INSIGHTFUL"
+          ).length,
+          appreciate: (reply.reactions ?? []).filter((r) => r.type === "LIKE")
+            .length,
+          agree: (reply.reactions ?? []).filter((r) => r.type === "AGREE")
+            .length,
+        },
+      };
+    }
+
+    setReplyReactions(next);
+  }, [apiThread, userId]);
 
   const repliesWithBest = useMemo(() => {
-    return thread.replies.map((reply) => ({
-      ...reply,
-      isBest: reply.id === activeBestReplyId,
-    }));
-  }, [thread.replies, activeBestReplyId]);
+    if (!thread) return [];
+
+    return thread.replies.map((reply) => {
+      const local = replyReactions[reply.id];
+
+      return {
+        ...reply,
+        isBest: Boolean(reply.isBest),
+        helpful: local?.counts.helpful ?? reply.helpful,
+        insightful: local?.counts.insightful ?? reply.insightful,
+        appreciate: local?.counts.appreciate ?? reply.appreciate,
+        agree: local?.counts.agree ?? reply.agree,
+      };
+    });
+  }, [thread, replyReactions]);
 
   const bestReply = repliesWithBest.find((reply) => reply.isBest);
   const discussionReplies = sortReplies(
@@ -115,29 +144,99 @@ export default function ThreadDetailsScreen() {
     sort
   );
 
-  const canResolve = status === "Open" && thread.replies.length > 0;
+  const canResolve =
+    thread?.status === "Open" && (thread.replies?.length ?? 0) > 0;
 
-  const handleReaction = (key: ThreadReactionKey) => {
-    setReactions((prev) => {
-      const next = { ...prev };
+  // Live totals for the display-only Reactions card.
+  const reactionTotals = useMemo(() => {
+    const totals: Record<ThreadReactionKey, number> = {
+      helpful: 0,
+      insightful: 0,
+      appreciate: 0,
+      agree: 0,
+    };
 
-      if (selectedReaction === key) {
-        next[key] = Math.max(0, next[key] - 1);
-        setSelectedReaction(null);
-        return next;
-      }
+    for (const reaction of apiThread?.reactions ?? []) {
+      totals[API_TO_UI_REACTION[reaction.type]] += 1;
+    }
 
-      if (selectedReaction) {
-        next[selectedReaction] = Math.max(0, next[selectedReaction] - 1);
-      }
+    for (const state of Object.values(replyReactions)) {
+      totals.helpful += state.counts.helpful;
+      totals.insightful += state.counts.insightful;
+      totals.appreciate += state.counts.appreciate;
+      totals.agree += state.counts.agree;
+    }
 
-      next[key] += 1;
-      setSelectedReaction(key);
-      return next;
+    return totals;
+  }, [apiThread?.reactions, replyReactions]);
+
+  const handleReplyReaction = async (
+    replyId: string,
+    key: ThreadReactionKey
+  ) => {
+    if (!threadId) return;
+
+    const flightKey = `${replyId}:${key}`;
+
+    // Ignore a repeat tap on the same emoji while its request is in flight.
+    if (inFlightReactions.current.has(flightKey)) return;
+    inFlightReactions.current.add(flightKey);
+
+    // Read the freshest state via a functional updater so back-to-back taps
+    // on different emojis stay consistent, then compute the toggle from it.
+    let wasSelected = false;
+
+    setReplyReactions((prev) => {
+      const current = prev[replyId] ?? {
+        counts: { helpful: 0, insightful: 0, appreciate: 0, agree: 0 },
+        selected: {},
+      };
+
+      wasSelected = Boolean(current.selected[key]);
+
+      return {
+        ...prev,
+        [replyId]: {
+          selected: { ...current.selected, [key]: !wasSelected },
+          counts: {
+            ...current.counts,
+            [key]: Math.max(0, current.counts[key] + (wasSelected ? -1 : 1)),
+          },
+        },
+      };
     });
+
+    try {
+      await reactToReply({
+        replyId,
+        type: UI_TO_API_REACTION[key],
+      });
+    } catch {
+      // Roll back exactly the change we made.
+      setReplyReactions((prev) => {
+        const current = prev[replyId];
+        if (!current) return prev;
+
+        return {
+          ...prev,
+          [replyId]: {
+            selected: { ...current.selected, [key]: wasSelected },
+            counts: {
+              ...current.counts,
+              [key]: Math.max(0, current.counts[key] + (wasSelected ? 1 : -1)),
+            },
+          },
+        };
+      });
+      Alert.alert("Error", "Could not update reaction. Please try again.");
+    } finally {
+      inFlightReactions.current.delete(flightKey);
+    }
   };
 
   const handleShare = async () => {
+    if (!thread) return;
+
     try {
       await Share.share({
         message: `${thread.title}\n\nJoin the discussion on Connect.`,
@@ -148,9 +247,11 @@ export default function ThreadDetailsScreen() {
   };
 
   const openResolve = () => {
+    if (!threadId) return;
+
     push({
       pathname: "/(protected)/resolve-discussion",
-      params: { id: thread.id },
+      params: { id: threadId },
     });
   };
 
@@ -175,16 +276,54 @@ export default function ThreadDetailsScreen() {
 
   const handleSubmitReply = async () => {
     Keyboard.dismiss();
-    if (!replyDraft.trim()) return;
+    if (!threadId || !replyDraft.trim() || isReplying) return;
 
     try {
-      setSubmitting(true);
-      await new Promise((resolve) => setTimeout(resolve, 350));
+      await submitReply(replyDraft.trim());
       setReplyDraft("");
-    } finally {
-      setSubmitting(false);
+    } catch {
+      Alert.alert("Error", "Failed to post reply. Please try again.");
     }
   };
+
+  if (isLoading) {
+    return (
+      <View style={[styles.screen, styles.centered]}>
+        <StatusBar barStyle="dark-content" />
+        <ActivityIndicator size="large" color={theme.colors.primary} />
+      </View>
+    );
+  }
+
+  if (isError || !thread) {
+    return (
+      <View style={[styles.screen, styles.centered]}>
+        <StatusBar barStyle="dark-content" />
+        <Text style={styles.errorTitle}>Couldn't load discussion</Text>
+        <Text style={styles.errorSubtitle}>
+          Check your connection and try again.
+        </Text>
+        <TouchableOpacity
+          style={styles.retryButton}
+          onPress={() => refetch()}
+          activeOpacity={0.85}
+        >
+          <Text style={styles.retryText}>Retry</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => goBack("/(protected)/home")}
+          activeOpacity={0.85}
+        >
+          <Text style={styles.backLink}>Back to Home</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  const solverName =
+    thread.status === "Solved"
+      ? bestReply?.authorName ?? thread.authorName
+      : null;
 
   return (
     <View style={styles.screen}>
@@ -196,7 +335,7 @@ export default function ThreadDetailsScreen() {
         keyboardVerticalOffset={0}
       >
         <ThreadDetailHeader
-          status={status}
+          status={thread.status}
           onBack={() => goBack("/(protected)/home")}
           onShare={handleShare}
           onResolve={openResolve}
@@ -214,7 +353,7 @@ export default function ThreadDetailsScreen() {
           keyboardDismissMode="interactive"
           showsVerticalScrollIndicator={false}
         >
-          {status === "Solved" && solverName ? (
+          {thread.status === "Solved" && solverName ? (
             <View style={styles.solvedBanner}>
               <Ionicons
                 name="checkmark-circle"
@@ -227,7 +366,7 @@ export default function ThreadDetailsScreen() {
             </View>
           ) : null}
 
-          <ThreadContentCard thread={{ ...thread, status }} />
+          <ThreadContentCard thread={thread} />
 
           {canResolve ? (
             <TouchableOpacity
@@ -259,11 +398,7 @@ export default function ThreadDetailsScreen() {
           ) : null}
 
           <View style={styles.section}>
-            <ReactionBar
-              reactions={reactions}
-              selected={selectedReaction}
-              onSelect={handleReaction}
-            />
+            <ReactionBar reactions={reactionTotals} />
           </View>
 
           <View style={styles.section}>
@@ -312,20 +447,39 @@ export default function ThreadDetailsScreen() {
           ) : null}
 
           <View style={styles.replyList}>
-            {discussionReplies.map((reply) => (
-              <ReplyCard key={reply.id} reply={reply} />
-            ))}
+            {discussionReplies.length === 0 && !bestReply ? (
+              <Text style={styles.emptyReplies}>
+                No replies yet. Be the first to join the discussion.
+              </Text>
+            ) : (
+              discussionReplies.map((reply) => (
+                <ReplyCard
+                  key={reply.id}
+                  reply={reply}
+                  selectedReactions={replyReactions[reply.id]?.selected}
+                  pickerOpen={pickerReplyId === reply.id}
+                  onTogglePicker={() =>
+                    setPickerReplyId((current) =>
+                      current === reply.id ? null : reply.id
+                    )
+                  }
+                  onSelectReaction={(key) =>
+                    handleReplyReaction(reply.id, key)
+                  }
+                />
+              ))
+            )}
           </View>
         </ScrollView>
 
-        {status !== "Closed" && status !== "Discarded" ? (
+        {thread.status !== "Closed" && thread.status !== "Discarded" ? (
           <ReplyComposer
             value={replyDraft}
             onChangeText={setReplyDraft}
             onAttach={handleAttach}
             onSubmit={handleSubmitReply}
             paddingBottom={insets.bottom}
-            submitting={submitting}
+            submitting={isReplying}
           />
         ) : null}
       </KeyboardAvoidingView>
@@ -341,6 +495,46 @@ const styles = StyleSheet.create({
 
   flex: {
     flex: 1,
+  },
+
+  centered: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: theme.spacing.xl,
+  },
+
+  errorTitle: {
+    ...theme.typography.h3,
+    color: theme.colors.text,
+    textAlign: "center",
+  },
+
+  errorSubtitle: {
+    ...theme.typography.body,
+    color: theme.colors.textSecondary,
+    textAlign: "center",
+    marginTop: theme.spacing.sm,
+  },
+
+  retryButton: {
+    marginTop: theme.spacing.lg,
+    backgroundColor: theme.colors.primary,
+    paddingHorizontal: theme.spacing.xl,
+    paddingVertical: theme.spacing.md,
+    borderRadius: theme.radius.full,
+  },
+
+  retryText: {
+    ...theme.typography.bodySmall,
+    fontWeight: "700",
+    color: theme.colors.white,
+  },
+
+  backLink: {
+    ...theme.typography.bodySmall,
+    fontWeight: "600",
+    color: theme.colors.primary,
+    marginTop: theme.spacing.md,
   },
 
   content: {
@@ -472,5 +666,12 @@ const styles = StyleSheet.create({
   replyList: {
     marginTop: theme.spacing.lg,
     gap: theme.spacing.md,
+  },
+
+  emptyReplies: {
+    ...theme.typography.body,
+    color: theme.colors.textSecondary,
+    textAlign: "center",
+    paddingVertical: theme.spacing.xl,
   },
 });

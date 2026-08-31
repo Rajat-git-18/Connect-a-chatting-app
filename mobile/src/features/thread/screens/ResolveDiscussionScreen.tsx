@@ -6,6 +6,8 @@ import {
   StyleSheet,
   StatusBar,
   TouchableOpacity,
+  ActivityIndicator,
+  Alert,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, router } from "expo-router";
@@ -13,49 +15,84 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import theme from "@/theme";
 import { goBack } from "@/utils/navigation";
 import ResolveReplyCard from "../components/ResolveReplyCard";
-import {
-  getDefaultThreadDetail,
-  getThreadDetail,
-} from "../data/thread-detail.mock";
-
-const SOLVER_NAME = "Rajat Gupta";
+import { useThread } from "@/hooks/thread/useThread";
+import { useResolveThread } from "@/hooks/thread/useResolveThread";
+import { mapApiThreadToUi } from "../utils/mapThreadDetail";
 
 export default function ResolveDiscussionScreen() {
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id?: string }>();
+  const threadId = Array.isArray(id) ? id[0] : id;
+
+  const {
+    data: apiThread,
+    isLoading,
+    isError,
+    refetch,
+  } = useThread(threadId ?? "");
+
+  const { mutateAsync: resolve, isPending } = useResolveThread(threadId ?? "");
 
   const thread = useMemo(
-    () => (id ? getThreadDetail(id) : null) ?? getDefaultThreadDetail(),
-    [id]
+    () => (apiThread ? mapApiThreadToUi(apiThread) : null),
+    [apiThread]
   );
 
   const [selectedReplyId, setSelectedReplyId] = useState<string | null>(null);
   const [confirmed, setConfirmed] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
 
-  const selectedReply = thread.replies.find(
+  const selectedReply = thread?.replies.find(
     (reply) => reply.id === selectedReplyId
   );
 
   const handleConfirm = async () => {
-    if (!selectedReplyId || !selectedReply || submitting) return;
+    if (!threadId || !selectedReplyId || !selectedReply || isPending) return;
 
-    setSubmitting(true);
-    setConfirmed(true);
+    try {
+      await resolve(selectedReplyId);
+      setConfirmed(true);
 
-    // Brief elegant success beat — no system dialog.
-    await new Promise((resolve) => setTimeout(resolve, 900));
+      await new Promise((resolveDelay) => setTimeout(resolveDelay, 900));
 
-    router.replace({
-      pathname: "/(protected)/thread/[id]",
-      params: {
-        id: thread.id,
-        resolved: "1",
-        bestReplyId: selectedReplyId,
-        solvedBy: SOLVER_NAME,
-      },
-    });
+      router.replace({
+        pathname: "/(protected)/thread/[id]",
+        params: {
+          id: threadId,
+        },
+      });
+    } catch (error: unknown) {
+      const message =
+        (error as { response?: { data?: { message?: string } } })?.response
+          ?.data?.message ?? "Failed to resolve discussion.";
+
+      Alert.alert("Error", message);
+    }
   };
+
+  if (isLoading) {
+    return (
+      <View style={[styles.screen, styles.centered]}>
+        <StatusBar barStyle="dark-content" />
+        <ActivityIndicator size="large" color={theme.colors.primary} />
+      </View>
+    );
+  }
+
+  if (isError || !thread) {
+    return (
+      <View style={[styles.screen, styles.centered]}>
+        <StatusBar barStyle="dark-content" />
+        <Text style={styles.errorTitle}>Couldn't load replies</Text>
+        <TouchableOpacity
+          style={styles.retryButton}
+          onPress={() => refetch()}
+          activeOpacity={0.85}
+        >
+          <Text style={styles.retryText}>Retry</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   if (confirmed && selectedReply) {
     return (
@@ -70,11 +107,9 @@ export default function ResolveDiscussionScreen() {
             />
           </View>
           <Text style={styles.successTitle}>Marked as Best Insight</Text>
-          <Text style={styles.successSubtitle}>
-            Open → Solved
-          </Text>
+          <Text style={styles.successSubtitle}>Open → Solved</Text>
           <Text style={styles.successMeta}>
-            Solved by {SOLVER_NAME}
+            Solved by {selectedReply.authorName}
           </Text>
         </View>
       </View>
@@ -140,15 +175,17 @@ export default function ResolveDiscussionScreen() {
         <TouchableOpacity
           style={[
             styles.primaryButton,
-            (!selectedReplyId || submitting) && styles.primaryButtonDisabled,
+            (!selectedReplyId || isPending) && styles.primaryButtonDisabled,
           ]}
           onPress={handleConfirm}
-          disabled={!selectedReplyId || submitting}
+          disabled={!selectedReplyId || isPending}
           activeOpacity={0.9}
           accessibilityRole="button"
           accessibilityLabel="Mark as Best Insight"
         >
-          <Text style={styles.primaryButtonText}>Mark as Best Insight</Text>
+          <Text style={styles.primaryButtonText}>
+            {isPending ? "Saving..." : "Mark as Best Insight"}
+          </Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -163,6 +200,32 @@ const styles = StyleSheet.create({
 
   flex: {
     flex: 1,
+  },
+
+  centered: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: theme.spacing.xl,
+  },
+
+  errorTitle: {
+    ...theme.typography.h3,
+    color: theme.colors.text,
+    textAlign: "center",
+  },
+
+  retryButton: {
+    marginTop: theme.spacing.lg,
+    backgroundColor: theme.colors.primary,
+    paddingHorizontal: theme.spacing.xl,
+    paddingVertical: theme.spacing.md,
+    borderRadius: theme.radius.full,
+  },
+
+  retryText: {
+    ...theme.typography.bodySmall,
+    fontWeight: "700",
+    color: theme.colors.white,
   },
 
   topBar: {
@@ -190,9 +253,8 @@ const styles = StyleSheet.create({
 
   topBarTitle: {
     ...theme.typography.bodySmall,
-    fontWeight: "600",
-    color: theme.colors.textSecondary,
-    letterSpacing: 0.3,
+    fontWeight: "700",
+    color: theme.colors.text,
   },
 
   content: {
@@ -201,18 +263,15 @@ const styles = StyleSheet.create({
   },
 
   heading: {
-    ...theme.typography.h1,
-    fontSize: 30,
-    lineHeight: 36,
+    ...theme.typography.h2,
     color: theme.colors.text,
   },
 
   subtitle: {
     ...theme.typography.body,
     color: theme.colors.textSecondary,
-    lineHeight: 24,
     marginTop: theme.spacing.sm,
-    marginBottom: theme.spacing.xl,
+    marginBottom: theme.spacing.lg,
   },
 
   threadHint: {
@@ -229,14 +288,14 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: theme.colors.textTertiary,
     textTransform: "uppercase",
-    letterSpacing: 0.4,
-    marginBottom: 4,
+    letterSpacing: 0.3,
   },
 
   threadHintTitle: {
     ...theme.typography.bodySmall,
     fontWeight: "600",
     color: theme.colors.text,
+    marginTop: 4,
   },
 
   list: {
@@ -244,21 +303,18 @@ const styles = StyleSheet.create({
   },
 
   footer: {
+    paddingHorizontal: theme.spacing.lg,
+    paddingTop: theme.spacing.md,
     borderTopWidth: 1,
     borderTopColor: theme.colors.border,
-    backgroundColor: theme.colors.white,
-    paddingTop: theme.spacing.md,
-    paddingHorizontal: theme.spacing.lg,
-    ...theme.shadows.float,
+    backgroundColor: theme.colors.background,
   },
 
   primaryButton: {
-    height: 56,
-    borderRadius: theme.radius.lg,
     backgroundColor: theme.colors.primary,
+    borderRadius: theme.radius.full,
+    paddingVertical: theme.spacing.md + 2,
     alignItems: "center",
-    justifyContent: "center",
-    ...theme.shadows.soft,
   },
 
   primaryButtonDisabled: {
@@ -266,7 +322,8 @@ const styles = StyleSheet.create({
   },
 
   primaryButtonText: {
-    ...theme.typography.button,
+    ...theme.typography.bodySmall,
+    fontWeight: "700",
     color: theme.colors.white,
   },
 
@@ -280,10 +337,10 @@ const styles = StyleSheet.create({
     width: "100%",
     alignItems: "center",
     backgroundColor: theme.colors.white,
-    borderRadius: theme.radius.lg,
+    borderRadius: theme.radius.xl,
     borderWidth: 1,
     borderColor: theme.colors.border,
-    paddingVertical: theme.spacing["3xl"],
+    paddingVertical: theme.spacing["2xl"],
     paddingHorizontal: theme.spacing.xl,
     ...theme.shadows.soft,
   },
@@ -292,7 +349,7 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: theme.radius.full,
-    backgroundColor: theme.colors.primary,
+    backgroundColor: "#059669",
     alignItems: "center",
     justifyContent: "center",
     marginBottom: theme.spacing.lg,
@@ -306,14 +363,14 @@ const styles = StyleSheet.create({
 
   successSubtitle: {
     ...theme.typography.body,
-    color: theme.colors.primary,
-    fontWeight: "600",
+    color: theme.colors.textSecondary,
     marginTop: theme.spacing.sm,
   },
 
   successMeta: {
     ...theme.typography.bodySmall,
-    color: theme.colors.textSecondary,
+    fontWeight: "600",
+    color: "#059669",
     marginTop: theme.spacing.md,
   },
 });

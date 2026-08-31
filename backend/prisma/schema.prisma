@@ -3,8 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 enum ThreadStatus {
@@ -35,6 +36,13 @@ enum ReactionType {
   AGREE
 }
 
+enum ConnectionRequestStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  CANCELLED
+}
+
 model User {
   id           String   @id @default(cuid())
   username     String   @unique
@@ -50,6 +58,14 @@ model User {
   threads   Thread[]
   replies   Reply[]
   reactions Reaction[]
+
+getToKnowMe GetToKnowMe?
+
+sentConnectionRequests ConnectionRequest[] @relation("SentConnectionRequests")
+receivedConnectionRequests ConnectionRequest[] @relation("ReceivedConnectionRequests")
+
+connectionsOne Connection[] @relation("UserConnectionsOne")
+connectionsTwo Connection[] @relation("UserConnectionsTwo")
 
   @@map("users")
 }
@@ -155,4 +171,68 @@ model ThreadTag {
   tag Tag @relation(fields: [tagId], references: [id], onDelete: Cascade)
 
   @@id([threadId, tagId])
+}
+
+
+model GetToKnowMe {
+  id        String   @id @default(cuid())
+
+  title     String   @default("Get To Know Me")
+  question  String
+
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  connectionRequests ConnectionRequest[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("get_to_know_me")
+}
+
+
+model ConnectionRequest {
+  id String @id @default(cuid())
+
+  senderId String
+  receiverId String
+
+  questionId String
+
+  answer String @db.Text
+
+  status ConnectionRequestStatus @default(PENDING)
+
+  sender User @relation("SentConnectionRequests", fields: [senderId], references: [id], onDelete: Cascade)
+
+  receiver User @relation("ReceivedConnectionRequests", fields: [receiverId], references: [id], onDelete: Cascade)
+
+  question GetToKnowMe @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([senderId])
+  @@index([receiverId])
+  @@index([senderId, receiverId])
+}
+
+
+model Connection {
+  id String @id @default(cuid())
+
+  userOneId String
+  userTwoId String
+
+  userOne User @relation("UserConnectionsOne", fields: [userOneId], references: [id], onDelete: Cascade)
+
+  userTwo User @relation("UserConnectionsTwo", fields: [userTwoId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([userOneId, userTwoId])
+
+  @@index([userOneId])
+  @@index([userTwoId])
 }

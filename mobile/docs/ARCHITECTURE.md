@@ -2,6 +2,8 @@ rebuild plan
 
 npx expo start --dev-client
 
+Restart Expo: npm run start:lan
+
 
 
 # Project Architecture
