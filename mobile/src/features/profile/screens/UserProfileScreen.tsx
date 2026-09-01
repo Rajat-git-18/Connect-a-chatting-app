@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   StatusBar,
   ActivityIndicator,
+  Alert,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -16,6 +17,7 @@ import { getInitials } from "@/utils/userDisplay";
 import { useUserProfile } from "@/hooks/profile/useUserProfile";
 import { useConnectionStatus } from "@/hooks/connections/useConnectionStatus";
 import { useProfile } from "@/hooks/profile/useProfile";
+import { useCreateConversation } from "@/hooks/chat/useCreateConversation";
 import type { ConnectionRelationshipStatus } from "@/types/connection.types";
 
 function getConnectButtonLabel(status: ConnectionRelationshipStatus): string {
@@ -57,6 +59,8 @@ export default function UserProfileScreen() {
   } = useUserProfile(userId);
   const { data: connectionStatus, isLoading: isStatusLoading } =
     useConnectionStatus(userId);
+  const { mutateAsync: startConversation, isPending: isStartingChat } =
+    useCreateConversation();
 
   const status = connectionStatus?.status ?? "NONE";
   const isSelf = currentUser?.id === userId || status === "SELF";
@@ -64,6 +68,15 @@ export default function UserProfileScreen() {
   const handleConnect = () => {
     if (isConnectDisabled(status)) return;
     push(`/(protected)/connect/${userId}`);
+  };
+
+  const handleMessage = async () => {
+    try {
+      const conversation = await startConversation({ otherUserId: userId });
+      push(`/(protected)/chat/${conversation.id}`);
+    } catch {
+      Alert.alert("Error", "Could not open conversation. Please try again.");
+    }
   };
 
   if (isLoading || isStatusLoading) {
@@ -147,7 +160,27 @@ export default function UserProfileScreen() {
           </View>
         </View>
 
-        {!isSelf ? (
+        {!isSelf && status === "CONNECTED" ? (
+          <TouchableOpacity
+            style={styles.connectButton}
+            onPress={handleMessage}
+            disabled={isStartingChat}
+            activeOpacity={0.85}
+          >
+            {isStartingChat ? (
+              <ActivityIndicator color={theme.colors.white} size="small" />
+            ) : (
+              <>
+                <Ionicons
+                  name="chatbubble-outline"
+                  size={18}
+                  color={theme.colors.white}
+                />
+                <Text style={styles.connectButtonText}>Message</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        ) : !isSelf ? (
           <TouchableOpacity
             style={[
               styles.connectButton,
@@ -159,11 +192,9 @@ export default function UserProfileScreen() {
           >
             <Ionicons
               name={
-                status === "CONNECTED"
-                  ? "checkmark-circle-outline"
-                  : status === "PENDING_SENT"
-                    ? "time-outline"
-                    : "person-add-outline"
+                status === "PENDING_SENT"
+                  ? "time-outline"
+                  : "person-add-outline"
               }
               size={18}
               color={

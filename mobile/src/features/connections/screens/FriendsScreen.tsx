@@ -18,6 +18,7 @@ import { useOutgoingConnectionRequests } from "@/hooks/connections/useOutgoingCo
 import { useAcceptConnectionRequest } from "@/hooks/connections/useAcceptConnectionRequest";
 import { useRejectConnectionRequest } from "@/hooks/connections/useRejectConnectionRequest";
 import { useCancelConnectionRequest } from "@/hooks/connections/useCancelConnectionRequest";
+import { useCreateConversation } from "@/hooks/chat/useCreateConversation";
 import ConnectionRequestCard from "../components/ConnectionRequestCard";
 import FriendCard from "../components/FriendCard";
 
@@ -60,6 +61,7 @@ export default function FriendsScreen() {
   const { mutateAsync: acceptRequest } = useAcceptConnectionRequest();
   const { mutateAsync: rejectRequest } = useRejectConnectionRequest();
   const { mutateAsync: cancelRequest } = useCancelConnectionRequest();
+  const { mutateAsync: startConversation } = useCreateConversation();
 
   const isLoading =
     activeTab === "connected"
@@ -141,6 +143,15 @@ export default function FriendsScreen() {
     );
   };
 
+  const handleMessage = async (userId: string) => {
+    try {
+      const conversation = await startConversation({ otherUserId: userId });
+      push(`/(protected)/chat/${conversation.id}`);
+    } catch {
+      Alert.alert("Error", "Could not open conversation. Please try again.");
+    }
+  };
+
   const renderContent = () => {
     if (isLoading) {
       return (
@@ -174,6 +185,7 @@ export default function FriendsScreen() {
           key={connection.id}
           connection={connection}
           onPress={(userId) => push(`/(protected)/user/${userId}`)}
+          onMessage={handleMessage}
         />
       ));
     }

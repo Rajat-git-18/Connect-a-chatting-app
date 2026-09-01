@@ -33,3 +33,12 @@ function getDevApiBaseUrl(): string {
 export const API_URL = __DEV__
   ? getDevApiBaseUrl()
   : "https://api.connect.com";
+
+function getDevSocketUrl(): string {
+  const apiBase = getDevApiBaseUrl();
+  return apiBase.replace(/\/api\/?$/, "");
+}
+
+export const SOCKET_URL = __DEV__
+  ? getDevSocketUrl()
+  : "https://api.connect.com";

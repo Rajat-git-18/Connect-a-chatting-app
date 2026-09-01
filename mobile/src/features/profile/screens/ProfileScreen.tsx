@@ -12,6 +12,8 @@ import { router } from "expo-router";
 import theme from "@/theme";
 import { push } from "@/utils/navigation";
 import { removeToken } from "@/services/auth/auth.service";
+import { disconnectChatSocket } from "@/services/socket/chat.socket";
+import { useChatUiStore } from "@/stores/chat.store";
 import { queryClient } from "@/lib/queryClient";
 import { useProfile } from "@/hooks/profile/useProfile";
 import { useGetToKnowMe } from "@/hooks/connections/useGetToKnowMe";
@@ -35,6 +37,12 @@ export default function ProfileScreen() {
   const { data: getToKnowMe, isLoading: isQuestionLoading } = useGetToKnowMe();
 
   const handleLogout = async () => {
+    disconnectChatSocket();
+    useChatUiStore.setState({
+      activeConversationId: null,
+      typingByConversation: {},
+      onlineUserIds: {},
+    });
     await removeToken();
     queryClient.clear();
     router.replace("/(auth)/login");

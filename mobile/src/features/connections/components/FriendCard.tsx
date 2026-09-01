@@ -4,14 +4,22 @@ import theme from "@/theme";
 import { getInitials } from "@/utils/userDisplay";
 import { formatRelativeTime } from "@/features/thread/utils/mapThreadDetail";
 import type { ConnectionFriendItem } from "@/types/connection.types";
+import { useIsUserOnline } from "@/stores/chat.store";
+import OnlineStatusDot from "@/features/chat/components/OnlineStatusDot";
 
 type FriendCardProps = {
   connection: ConnectionFriendItem;
   onPress: (userId: string) => void;
+  onMessage?: (userId: string) => void;
 };
 
-export default function FriendCard({ connection, onPress }: FriendCardProps) {
+export default function FriendCard({
+  connection,
+  onPress,
+  onMessage,
+}: FriendCardProps) {
   const { user } = connection;
+  const isOnline = useIsUserOnline(user.id);
 
   return (
     <TouchableOpacity
@@ -21,6 +29,11 @@ export default function FriendCard({ connection, onPress }: FriendCardProps) {
     >
       <View style={styles.avatar}>
         <Text style={styles.avatarText}>{getInitials(user.displayName)}</Text>
+        <OnlineStatusDot
+          isOnline={isOnline}
+          size={12}
+          style={styles.presenceDot}
+        />
       </View>
 
       <View style={styles.copy}>
@@ -36,11 +49,26 @@ export default function FriendCard({ connection, onPress }: FriendCardProps) {
         </Text>
       </View>
 
-      <Ionicons
-        name="chevron-forward"
-        size={18}
-        color={theme.colors.textTertiary}
-      />
+      {onMessage ? (
+        <TouchableOpacity
+          style={styles.messageButton}
+          onPress={() => onMessage(user.id)}
+          activeOpacity={0.85}
+          accessibilityLabel={`Message ${user.displayName}`}
+        >
+          <Ionicons
+            name="chatbubble-outline"
+            size={18}
+            color={theme.colors.primary}
+          />
+        </TouchableOpacity>
+      ) : (
+        <Ionicons
+          name="chevron-forward"
+          size={18}
+          color={theme.colors.textTertiary}
+        />
+      )}
     </TouchableOpacity>
   );
 }
@@ -66,6 +94,13 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.primarySoft,
     alignItems: "center",
     justifyContent: "center",
+    position: "relative",
+  },
+
+  presenceDot: {
+    position: "absolute",
+    bottom: 0,
+    right: 0,
   },
 
   avatarText: {
@@ -102,5 +137,16 @@ const styles = StyleSheet.create({
     ...theme.typography.caption,
     color: theme.colors.textTertiary,
     marginTop: 6,
+  },
+
+  messageButton: {
+    width: 40,
+    height: 40,
+    borderRadius: theme.radius.full,
+    backgroundColor: theme.colors.primarySoft,
+    borderWidth: 1,
+    borderColor: theme.colors.primaryLight,
+    alignItems: "center",
+    justifyContent: "center",
   },
 });

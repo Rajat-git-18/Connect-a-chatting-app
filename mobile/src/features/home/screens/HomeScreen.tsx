@@ -18,16 +18,8 @@ import PeopleYouMayKnow from "../components/PeopleYouMayKnow";
 import GlassTabBar, { type TabKey } from "../components/GlassTabBar";
 import ProfileScreen from "@/features/profile/screens/ProfileScreen";
 import FriendsScreen from "@/features/connections/screens/FriendsScreen";
+import ChatListScreen from "@/features/chat/screens/ChatListScreen";
 import { useThreads } from "@/hooks/thread/useThreads";
-
-function PlaceholderTab({ title, subtitle }: { title: string; subtitle: string }) {
-  return (
-    <View style={styles.placeholder}>
-      <Text style={styles.placeholderTitle}>{title}</Text>
-      <Text style={styles.placeholderSubtitle}>{subtitle}</Text>
-    </View>
-  );
-}
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
@@ -75,25 +67,9 @@ export default function HomeScreen() {
         <ProfileScreen />
       ) : activeTab === "friends" ? (
         <FriendsScreen />
-      ) : (
-        <View
-          style={[
-            styles.content,
-            styles.flex,
-            {
-              paddingTop: insets.top + theme.spacing.xl,
-              paddingBottom: 120 + insets.bottom,
-            },
-          ]}
-        >
-          {activeTab === "chats" && (
-            <PlaceholderTab
-              title="Chats"
-              subtitle="Your conversations will appear here."
-            />
-          )}
-        </View>
-      )}
+      ) : activeTab === "chats" ? (
+        <ChatListScreen />
+      ) : null}
 
       <GlassTabBar active={activeTab} onChange={setActiveTab} />
     </View>

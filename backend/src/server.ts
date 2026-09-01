@@ -1,4 +1,5 @@
 import "dotenv/config";
+import http from "http";
 import express from "express";
 import cors from "cors";
 
@@ -8,6 +9,8 @@ import threadRoutes from "./modules/thread/thread.routes.js";
 import userRoutes from "./modules/user/user.routes.js";
 import getToKnowMeRoutes from "./modules/getToKnowMe/getToKnowMe.routes.js";
 import connectionRoutes from "./modules/connection/connection.routes.js";
+import conversationRoutes from "./modules/conversation/conversation.routes.js";
+import { initSocketServer } from "./socket/socket.server.js";
 
 const app = express();
 
@@ -24,6 +27,8 @@ app.use("/api/get-to-know-me", getToKnowMeRoutes);
 
 app.use("/api/connections", connectionRoutes);
 
+app.use("/api/conversations", conversationRoutes);
+
 
 app.get("/", (_, res) => {
   res.json({
@@ -36,7 +41,10 @@ app.use(errorHandler);
 
 const PORT = Number(process.env.PORT) || 5001;
 
+const httpServer = http.createServer(app);
+initSocketServer(httpServer);
+
 // Bind on all interfaces so a physical phone on the same Wi‑Fi can reach the API.
-app.listen(PORT, "0.0.0.0", () => {
+httpServer.listen(PORT, "0.0.0.0", () => {
   console.log(`Server running on http://0.0.0.0:${PORT}`);
 });

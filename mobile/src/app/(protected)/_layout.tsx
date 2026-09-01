@@ -1,8 +1,10 @@
 import { Stack } from "expo-router";
+import ChatSocketProvider from "@/features/chat/components/ChatSocketProvider";
 
 export default function ProtectedLayout() {
   return (
-    <Stack
+    <ChatSocketProvider>
+      <Stack
       screenOptions={{
         headerShown: false,
         animation: "slide_from_right",
@@ -66,6 +68,13 @@ export default function ProtectedLayout() {
         }}
       />
       <Stack.Screen
+        name="chat/[id]"
+        options={{
+          animation: "slide_from_right",
+          gestureEnabled: true,
+        }}
+      />
+      <Stack.Screen
         name="resolve-discussion"
         options={{
           animation: "slide_from_right",
@@ -73,5 +82,6 @@ export default function ProtectedLayout() {
         }}
       />
     </Stack>
+    </ChatSocketProvider>
   );
 }
