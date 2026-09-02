@@ -11,12 +11,14 @@ type FriendCardProps = {
   connection: ConnectionFriendItem;
   onPress: (userId: string) => void;
   onMessage?: (userId: string) => void;
+  onUnfriend?: (connectionId: string, displayName: string) => void;
 };
 
 export default function FriendCard({
   connection,
   onPress,
   onMessage,
+  onUnfriend,
 }: FriendCardProps) {
   const { user } = connection;
   const isOnline = useIsUserOnline(user.id);
@@ -49,19 +51,37 @@ export default function FriendCard({
         </Text>
       </View>
 
-      {onMessage ? (
-        <TouchableOpacity
-          style={styles.messageButton}
-          onPress={() => onMessage(user.id)}
-          activeOpacity={0.85}
-          accessibilityLabel={`Message ${user.displayName}`}
-        >
-          <Ionicons
-            name="chatbubble-outline"
-            size={18}
-            color={theme.colors.primary}
-          />
-        </TouchableOpacity>
+      {onMessage || onUnfriend ? (
+        <View style={styles.actions}>
+          {onMessage ? (
+            <TouchableOpacity
+              style={styles.messageButton}
+              onPress={() => onMessage(user.id)}
+              activeOpacity={0.85}
+              accessibilityLabel={`Message ${user.displayName}`}
+            >
+              <Ionicons
+                name="chatbubble-outline"
+                size={18}
+                color={theme.colors.primary}
+              />
+            </TouchableOpacity>
+          ) : null}
+          {onUnfriend ? (
+            <TouchableOpacity
+              style={styles.unfriendButton}
+              onPress={() => onUnfriend(connection.id, user.displayName)}
+              activeOpacity={0.85}
+              accessibilityLabel={`Remove ${user.displayName}`}
+            >
+              <Ionicons
+                name="person-remove-outline"
+                size={18}
+                color={theme.colors.error}
+              />
+            </TouchableOpacity>
+          ) : null}
+        </View>
       ) : (
         <Ionicons
           name="chevron-forward"
@@ -146,6 +166,23 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.primarySoft,
     borderWidth: 1,
     borderColor: theme.colors.primaryLight,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  actions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: theme.spacing.sm,
+  },
+
+  unfriendButton: {
+    width: 40,
+    height: 40,
+    borderRadius: theme.radius.full,
+    backgroundColor: theme.colors.white,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
     alignItems: "center",
     justifyContent: "center",
   },

@@ -9,6 +9,7 @@ import {
   getIncomingConnectionRequestsService,
   getOutgoingConnectionRequestsService,
   rejectConnectionRequestService,
+  removeConnectionService,
   sendConnectionRequestService,
 } from "./connection.service.js";
 
@@ -137,6 +138,22 @@ export async function cancelConnectionRequest(
     const result = await cancelConnectionRequestService(
       req.user!.userId,
       req.params.requestId as string
+    );
+    return res.status(200).json(result);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function removeConnection(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  try {
+    const result = await removeConnectionService(
+      req.user!.userId,
+      req.params.connectionId as string
     );
     return res.status(200).json(result);
   } catch (error) {

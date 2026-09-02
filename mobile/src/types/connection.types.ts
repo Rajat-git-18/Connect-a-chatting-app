@@ -18,6 +18,7 @@ export interface ConnectionSuggestion {
 export interface ConnectionStatus {
   status: ConnectionRelationshipStatus;
   requestId?: string;
+  connectionId?: string;
 }
 
 export interface SendConnectionRequestPayload {

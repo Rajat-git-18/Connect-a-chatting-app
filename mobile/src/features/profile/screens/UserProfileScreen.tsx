@@ -18,6 +18,7 @@ import { useUserProfile } from "@/hooks/profile/useUserProfile";
 import { useConnectionStatus } from "@/hooks/connections/useConnectionStatus";
 import { useProfile } from "@/hooks/profile/useProfile";
 import { useCreateConversation } from "@/hooks/chat/useCreateConversation";
+import { useRemoveConnection } from "@/hooks/connections/useRemoveConnection";
 import type { ConnectionRelationshipStatus } from "@/types/connection.types";
 
 function getConnectButtonLabel(status: ConnectionRelationshipStatus): string {
@@ -61,6 +62,8 @@ export default function UserProfileScreen() {
     useConnectionStatus(userId);
   const { mutateAsync: startConversation, isPending: isStartingChat } =
     useCreateConversation();
+  const { mutateAsync: removeConnection, isPending: isRemovingConnection } =
+    useRemoveConnection();
 
   const status = connectionStatus?.status ?? "NONE";
   const isSelf = currentUser?.id === userId || status === "SELF";
@@ -77,6 +80,37 @@ export default function UserProfileScreen() {
     } catch {
       Alert.alert("Error", "Could not open conversation. Please try again.");
     }
+  };
+
+  const handleUnfriend = () => {
+    const connectionId = connectionStatus?.connectionId;
+    if (!connectionId || !profile) return;
+
+    Alert.alert(
+      "Remove connection?",
+      `You and ${profile.displayName} will no longer be connected. Existing chat history stays, but you won't be able to send new messages until you connect again.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Remove",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await removeConnection(connectionId);
+              Alert.alert(
+                "Connection removed",
+                `You are no longer connected with ${profile.displayName}.`
+              );
+            } catch {
+              Alert.alert(
+                "Error",
+                "Could not remove this connection. Please try again."
+              );
+            }
+          },
+        },
+      ]
+    );
   };
 
   if (isLoading || isStatusLoading) {
@@ -161,25 +195,48 @@ export default function UserProfileScreen() {
         </View>
 
         {!isSelf && status === "CONNECTED" ? (
-          <TouchableOpacity
-            style={styles.connectButton}
-            onPress={handleMessage}
-            disabled={isStartingChat}
-            activeOpacity={0.85}
-          >
-            {isStartingChat ? (
-              <ActivityIndicator color={theme.colors.white} size="small" />
-            ) : (
-              <>
-                <Ionicons
-                  name="chatbubble-outline"
-                  size={18}
-                  color={theme.colors.white}
-                />
-                <Text style={styles.connectButtonText}>Message</Text>
-              </>
-            )}
-          </TouchableOpacity>
+          <>
+            <TouchableOpacity
+              style={styles.connectButton}
+              onPress={handleMessage}
+              disabled={isStartingChat || isRemovingConnection}
+              activeOpacity={0.85}
+            >
+              {isStartingChat ? (
+                <ActivityIndicator color={theme.colors.white} size="small" />
+              ) : (
+                <>
+                  <Ionicons
+                    name="chatbubble-outline"
+                    size={18}
+                    color={theme.colors.white}
+                  />
+                  <Text style={styles.connectButtonText}>Message</Text>
+                </>
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.unfriendButton}
+              onPress={handleUnfriend}
+              disabled={isRemovingConnection}
+              activeOpacity={0.85}
+            >
+              {isRemovingConnection ? (
+                <ActivityIndicator color={theme.colors.error} size="small" />
+              ) : (
+                <>
+                  <Ionicons
+                    name="person-remove-outline"
+                    size={18}
+                    color={theme.colors.error}
+                  />
+                  <Text style={styles.unfriendButtonText}>
+                    Remove Connection
+                  </Text>
+                </>
+              )}
+            </TouchableOpacity>
+          </>
         ) : !isSelf ? (
           <TouchableOpacity
             style={[
@@ -415,6 +472,24 @@ const styles = StyleSheet.create({
 
   connectButtonTextDisabled: {
     color: theme.colors.textSecondary,
+  },
+
+  unfriendButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: theme.spacing.sm,
+    height: 52,
+    borderRadius: theme.radius.lg,
+    backgroundColor: theme.colors.white,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    marginBottom: theme.spacing.sm,
+  },
+
+  unfriendButtonText: {
+    ...theme.typography.button,
+    color: theme.colors.error,
   },
 
   statusHint: {

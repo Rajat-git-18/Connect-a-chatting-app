@@ -238,7 +238,10 @@ export async function getConnectionStatusService(
     return {
       success: true,
       message: "You are connected with this user.",
-      data: { status: "CONNECTED" },
+      data: {
+        status: "CONNECTED",
+        connectionId: existingConnection.id,
+      },
     };
   }
 
@@ -340,5 +343,31 @@ export async function sendConnectionRequestService(
       createdAt: request.createdAt,
       receiver: request.receiver,
     },
+  };
+}
+
+export async function removeConnectionService(
+  currentUserId: string,
+  connectionId: string
+) {
+  const connection =
+    await connectionRepository.findConnectionById(connectionId);
+
+  if (!connection) {
+    throw new AppError(404, "Connection not found.");
+  }
+
+  if (
+    connection.userOneId !== currentUserId &&
+    connection.userTwoId !== currentUserId
+  ) {
+    throw new AppError(403, "You are not allowed to remove this connection.");
+  }
+
+  await connectionRepository.deleteConnectionById(connectionId);
+
+  return {
+    success: true,
+    message: "Connection removed successfully.",
   };
 }

@@ -23,6 +23,7 @@ export interface ConnectionSuggestion {
 export interface ConnectionStatusData {
   status: ConnectionRelationshipStatus;
   requestId?: string;
+  connectionId?: string;
 }
 
 export interface ConnectionUserSummary {

@@ -6,7 +6,7 @@ import {
   createThreadTags,
   findTagsByNames,
   findThreadById,
-  findAllThreads,
+  findVisibleThreadsForViewer,
   findThreadsByAuthor,
   createReply,
   findReplyById,
@@ -29,6 +29,10 @@ import {
 } from "./thread.types.js";
 
 import { AppError } from "../../errors/AppError.js";
+import {
+  assertViewerCanAccessThread,
+  getConnectedUserIds,
+} from "./thread.visibility.js";
 
 
 
@@ -94,9 +98,13 @@ export async function createThreadService(
   }
 
 
-  export async function getAllThreadsService() {
-    const threads = await findAllThreads();
-  
+  export async function getAllThreadsService(viewerId: string) {
+    const connectedAuthorIds = await getConnectedUserIds(viewerId);
+    const threads = await findVisibleThreadsForViewer(
+      viewerId,
+      connectedAuthorIds
+    );
+
     return {
       success: true,
       message: "Threads fetched successfully.",
@@ -115,17 +123,17 @@ export async function createThreadService(
   }
 
   export async function getThreadByIdService(
-    threadId: string
+    threadId: string,
+    viewerId: string
   ) {
     const thread = await findThreadById(threadId);
-  
+
     if (!thread) {
-      throw new AppError(
-        404,
-        "Thread not found."
-      );
+      throw new AppError(404, "Thread not found.");
     }
-  
+
+    await assertViewerCanAccessThread(viewerId, thread);
+
     return {
       success: true,
       message: "Thread fetched successfully.",
@@ -141,12 +149,11 @@ export async function createThreadService(
     const thread = await findThreadById(threadId);
   
     if (!thread) {
-      throw new AppError(
-        404,
-        "Thread not found."
-      );
+      throw new AppError(404, "Thread not found.");
     }
-  
+
+    await assertViewerCanAccessThread(authorId, thread);
+
     if (thread.status !== ThreadStatus.OPEN) {
       throw new AppError(
         400,
@@ -187,12 +194,11 @@ export async function createThreadService(
     const thread = await findThreadById(threadId);
   
     if (!thread) {
-      throw new AppError(
-        404,
-        "Thread not found."
-      );
+      throw new AppError(404, "Thread not found.");
     }
-  
+
+    await assertViewerCanAccessThread(userId, thread);
+
     const existingReaction = await findReaction(
       userId,
       threadId,
@@ -241,6 +247,8 @@ export async function createThreadService(
     if (!thread) {
       throw new AppError(404, "Thread not found.");
     }
+
+    await assertViewerCanAccessThread(userId, thread);
 
     const reply = await findReplyById(replyId);
 

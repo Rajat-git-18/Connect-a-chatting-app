@@ -14,12 +14,12 @@ import {
 
 import { authenticate } from "../../middlewares/authenticate.js";
 import { validate } from "../../middlewares/validate.js";
-import { reactionSchema } from "./thread.schema.js";
+import { createThreadSchema, reactionSchema } from "./thread.schema.js";
 
 const router = Router();
 
 // Thread
-router.post("/", authenticate, createThread);
+router.post("/", authenticate, validate(createThreadSchema), createThread);
 
 router.get("/", authenticate, getAllThreads);
 

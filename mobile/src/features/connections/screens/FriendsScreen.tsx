@@ -19,6 +19,7 @@ import { useAcceptConnectionRequest } from "@/hooks/connections/useAcceptConnect
 import { useRejectConnectionRequest } from "@/hooks/connections/useRejectConnectionRequest";
 import { useCancelConnectionRequest } from "@/hooks/connections/useCancelConnectionRequest";
 import { useCreateConversation } from "@/hooks/chat/useCreateConversation";
+import { useRemoveConnection } from "@/hooks/connections/useRemoveConnection";
 import ConnectionRequestCard from "../components/ConnectionRequestCard";
 import FriendCard from "../components/FriendCard";
 
@@ -62,6 +63,7 @@ export default function FriendsScreen() {
   const { mutateAsync: rejectRequest } = useRejectConnectionRequest();
   const { mutateAsync: cancelRequest } = useCancelConnectionRequest();
   const { mutateAsync: startConversation } = useCreateConversation();
+  const { mutateAsync: removeConnection } = useRemoveConnection();
 
   const isLoading =
     activeTab === "connected"
@@ -152,6 +154,34 @@ export default function FriendsScreen() {
     }
   };
 
+  const handleUnfriend = (connectionId: string, name: string) => {
+    Alert.alert(
+      "Remove connection?",
+      `You and ${name} will no longer be connected. Existing chat history stays, but you won't be able to send new messages until you connect again.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Remove",
+          style: "destructive",
+          onPress: async () => {
+            setProcessingId(connectionId);
+            try {
+              await removeConnection(connectionId);
+              Alert.alert("Connection removed", `You are no longer connected with ${name}.`);
+            } catch {
+              Alert.alert(
+                "Error",
+                "Could not remove this connection. Please try again."
+              );
+            } finally {
+              setProcessingId(null);
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const renderContent = () => {
     if (isLoading) {
       return (
@@ -186,6 +216,7 @@ export default function FriendsScreen() {
           connection={connection}
           onPress={(userId) => push(`/(protected)/user/${userId}`)}
           onMessage={handleMessage}
+          onUnfriend={handleUnfriend}
         />
       ));
     }

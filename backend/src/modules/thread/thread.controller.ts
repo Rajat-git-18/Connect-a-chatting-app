@@ -36,7 +36,9 @@ export async function createThread(
     req: Request,
     res: Response
   ) {
-    const result = await getAllThreadsService();
+    const result = await getAllThreadsService(
+      req.user?.userId as string
+    );
   
     res.json(result);
   }
@@ -57,7 +59,8 @@ export async function createThread(
     res: Response
   ) {
     const result = await getThreadByIdService(
-      req.params.threadId as string
+      req.params.threadId as string,
+      req.user?.userId as string
     );
   
     if (!result.success) {

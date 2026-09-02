@@ -2,6 +2,7 @@ import {
   Prisma,
   ReactionType,
   ThreadStatus,
+  ThreadVisibility,
 } from "@prisma/client";
 import { prisma } from "../../lib/prisma.js";
 
@@ -142,16 +143,29 @@ function withCombinedReactionCount({ replies, ...thread }: ThreadListRow) {
   };
 }
 
-export async function findAllThreads() {
-    const threads = await prisma.thread.findMany({
-      orderBy: {
-        createdAt: "desc",
-      },
-      include: THREAD_LIST_INCLUDE,
-    });
+export async function findVisibleThreadsForViewer(
+  viewerId: string,
+  connectedAuthorIds: string[]
+) {
+  const threads = await prisma.thread.findMany({
+    where: {
+      OR: [
+        { visibility: ThreadVisibility.PUBLIC },
+        { authorId: viewerId },
+        {
+          visibility: ThreadVisibility.FRIENDS,
+          authorId: { in: connectedAuthorIds },
+        },
+      ],
+    },
+    orderBy: {
+      createdAt: "desc",
+    },
+    include: THREAD_LIST_INCLUDE,
+  });
 
-    return threads.map(withCombinedReactionCount);
-  }
+  return threads.map(withCombinedReactionCount);
+}
 
 export async function findThreadsByAuthor(authorId: string) {
     const threads = await prisma.thread.findMany({

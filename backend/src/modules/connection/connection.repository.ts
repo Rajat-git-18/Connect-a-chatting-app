@@ -34,6 +34,18 @@ export const connectionRepository = {
     });
   },
 
+  async findConnectionById(connectionId: string) {
+    return prisma.connection.findUnique({
+      where: { id: connectionId },
+    });
+  },
+
+  async deleteConnectionById(connectionId: string) {
+    return prisma.connection.delete({
+      where: { id: connectionId },
+    });
+  },
+
   async findPendingRequestBetween(userAId: string, userBId: string) {
     return prisma.connectionRequest.findFirst({
       where: {

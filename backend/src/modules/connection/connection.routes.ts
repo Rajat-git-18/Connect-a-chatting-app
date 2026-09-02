@@ -11,6 +11,7 @@ import {
   getIncomingConnectionRequests,
   getOutgoingConnectionRequests,
   rejectConnectionRequest,
+  removeConnection,
   sendConnectionRequest,
 } from "./connection.controller.js";
 import { sendConnectionRequestSchema } from "./connection.schema.js";
@@ -51,5 +52,7 @@ router.patch(
   authenticate,
   cancelConnectionRequest
 );
+
+router.delete("/:connectionId", authenticate, removeConnection);
 
 export default router;

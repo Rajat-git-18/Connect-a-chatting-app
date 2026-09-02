@@ -74,3 +74,10 @@ export const cancelConnectionRequest = async (requestId: string) => {
   );
   return response.data;
 };
+
+export const removeConnection = async (connectionId: string) => {
+  const response = await api.delete<{ success: boolean; message: string }>(
+    `/connections/${connectionId}`
+  );
+  return response.data;
+};

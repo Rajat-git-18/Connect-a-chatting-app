@@ -34,8 +34,10 @@ export function useChatSocket() {
   const setUserOnline = useChatUiStore((state) => state.setUserOnline);
   const setOnlineSnapshot = useChatUiStore((state) => state.setOnlineSnapshot);
 
-  activeConversationRef.current = activeConversationId;
-  profileIdRef.current = profile?.id;
+  useEffect(() => {
+    activeConversationRef.current = activeConversationId;
+    profileIdRef.current = profile?.id;
+  }, [activeConversationId, profile?.id]);
 
   useEffect(() => {
     let socket: Socket | null = null;
