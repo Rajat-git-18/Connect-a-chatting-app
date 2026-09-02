@@ -87,3 +87,86 @@ export function emitPresenceSnapshot(
     .to(userRoom(userId))
     .emit(SOCKET_EVENTS.PRESENCE_SNAPSHOT, payload);
 }
+
+function serializeConnectionRequest(request: {
+  id: string;
+  status: string;
+  answer: string;
+  createdAt: Date;
+  updatedAt: Date;
+  sender: {
+    id: string;
+    username: string;
+    displayName: string;
+    profileImage: string | null;
+    bio: string | null;
+  };
+  receiver: {
+    id: string;
+    username: string;
+    displayName: string;
+    profileImage: string | null;
+    bio: string | null;
+  };
+  question: {
+    id: string;
+    question: string;
+  };
+}) {
+  return {
+    id: request.id,
+    status: request.status,
+    answer: request.answer,
+    createdAt: request.createdAt.toISOString(),
+    updatedAt: request.updatedAt.toISOString(),
+    sender: request.sender,
+    receiver: request.receiver,
+    question: request.question,
+  };
+}
+
+export function emitConnectionRequestNew(
+  userId: string,
+  request: Parameters<typeof serializeConnectionRequest>[0]
+) {
+  getSocketServer()
+    .to(userRoom(userId))
+    .emit(SOCKET_EVENTS.CONNECTION_REQUEST_NEW, serializeConnectionRequest(request));
+}
+
+export function emitConnectionRequestRemoved(
+  userId: string,
+  payload: { requestId: string }
+) {
+  getSocketServer()
+    .to(userRoom(userId))
+    .emit(SOCKET_EVENTS.CONNECTION_REQUEST_REMOVED, payload);
+}
+
+export function emitConnectionNew(
+  userId: string,
+  payload: {
+    id: string;
+    connectedAt: string;
+    user: {
+      id: string;
+      username: string;
+      displayName: string;
+      profileImage: string | null;
+      bio: string | null;
+    };
+  }
+) {
+  getSocketServer()
+    .to(userRoom(userId))
+    .emit(SOCKET_EVENTS.CONNECTION_NEW, payload);
+}
+
+export function emitConnectionRemoved(
+  userId: string,
+  payload: { connectionId: string; otherUserId: string }
+) {
+  getSocketServer()
+    .to(userRoom(userId))
+    .emit(SOCKET_EVENTS.CONNECTION_REMOVED, payload);
+}

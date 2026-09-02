@@ -71,15 +71,7 @@ export const connectionRepository = {
         questionId: data.questionId,
         answer: data.answer,
       },
-      include: {
-        receiver: {
-          select: {
-            id: true,
-            displayName: true,
-            username: true,
-          },
-        },
-      },
+      include: connectionRequestInclude,
     });
   },
 

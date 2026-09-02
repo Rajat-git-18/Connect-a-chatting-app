@@ -11,6 +11,12 @@ import type {
   ConnectionFriendItem,
   SendConnectionRequestBody,
 } from "./connection.types.js";
+import {
+  emitConnectionNew,
+  emitConnectionRemoved,
+  emitConnectionRequestNew,
+  emitConnectionRequestRemoved,
+} from "../../socket/socket.emitter.js";
 
 function mapConnectionRequest(request: {
   id: string;
@@ -110,6 +116,30 @@ export async function acceptConnectionRequestService(
     throw new AppError(409, "This connection request is no longer pending.");
   }
 
+  const connection = await connectionRepository.findConnectionBetween(
+    request.senderId,
+    request.receiverId
+  );
+
+  emitConnectionRequestRemoved(currentUserId, { requestId });
+  emitConnectionRequestRemoved(request.senderId, { requestId });
+
+  if (connection) {
+    const sender = request.sender;
+    const receiver = request.receiver;
+
+    emitConnectionNew(currentUserId, {
+      id: connection.id,
+      connectedAt: connection.createdAt.toISOString(),
+      user: sender,
+    });
+    emitConnectionNew(request.senderId, {
+      id: connection.id,
+      connectedAt: connection.createdAt.toISOString(),
+      user: receiver,
+    });
+  }
+
   return {
     success: true,
     message: "Connection request accepted.",
@@ -143,6 +173,9 @@ export async function rejectConnectionRequestService(
     ConnectionRequestStatus.REJECTED
   );
 
+  emitConnectionRequestRemoved(currentUserId, { requestId });
+  emitConnectionRequestRemoved(request.senderId, { requestId });
+
   return {
     success: true,
     message: "Connection request rejected.",
@@ -175,6 +208,9 @@ export async function cancelConnectionRequestService(
     requestId,
     ConnectionRequestStatus.CANCELLED
   );
+
+  emitConnectionRequestRemoved(currentUserId, { requestId });
+  emitConnectionRequestRemoved(request.receiverId, { requestId });
 
   return {
     success: true,
@@ -333,6 +369,9 @@ export async function sendConnectionRequestService(
     answer: answer.trim(),
   });
 
+  emitConnectionRequestNew(receiverId, request);
+  emitConnectionRequestNew(senderId, request);
+
   return {
     success: true,
     message: "Connection request sent successfully.",
@@ -364,7 +403,21 @@ export async function removeConnectionService(
     throw new AppError(403, "You are not allowed to remove this connection.");
   }
 
+  const otherUserId =
+    connection.userOneId === currentUserId
+      ? connection.userTwoId
+      : connection.userOneId;
+
   await connectionRepository.deleteConnectionById(connectionId);
+
+  emitConnectionRemoved(currentUserId, {
+    connectionId,
+    otherUserId,
+  });
+  emitConnectionRemoved(otherUserId, {
+    connectionId,
+    otherUserId: currentUserId,
+  });
 
   return {
     success: true,

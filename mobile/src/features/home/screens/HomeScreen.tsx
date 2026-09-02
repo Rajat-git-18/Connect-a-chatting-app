@@ -20,12 +20,14 @@ import ProfileScreen from "@/features/profile/screens/ProfileScreen";
 import FriendsScreen from "@/features/connections/screens/FriendsScreen";
 import ChatListScreen from "@/features/chat/screens/ChatListScreen";
 import { useThreads } from "@/hooks/thread/useThreads";
+import { useIncomingConnectionRequests } from "@/hooks/connections/useIncomingConnectionRequests";
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const [activeTab, setActiveTab] = useState<TabKey>("home");
   const [search, setSearch] = useState("");
   const { data, isLoading } = useThreads();
+  const { data: incomingRequests = [] } = useIncomingConnectionRequests();
   const threads = Array.isArray(data) ? data : [];
 
   return (
@@ -71,7 +73,11 @@ export default function HomeScreen() {
         <ChatListScreen />
       ) : null}
 
-      <GlassTabBar active={activeTab} onChange={setActiveTab} />
+      <GlassTabBar
+        active={activeTab}
+        onChange={setActiveTab}
+        friendsBadgeCount={incomingRequests.length}
+      />
     </View>
   );
 }

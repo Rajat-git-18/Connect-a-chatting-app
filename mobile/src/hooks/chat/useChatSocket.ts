@@ -9,14 +9,26 @@ import {
   type TypingPayload,
   type PresenceUserPayload,
   type PresenceSnapshotPayload,
+  type ConnectionRequestRemovedPayload,
+  type ConnectionNewPayload,
+  type ConnectionRemovedPayload,
 } from "@/services/socket/chat.events";
 import {
   patchConversationList,
   patchConversationReadInCache,
   upsertMessageInCache,
 } from "@/services/socket/chatCache";
+import {
+  invalidateConnectionSuggestions,
+  prependConnectionToCache,
+  prependIncomingRequest,
+  prependOutgoingRequest,
+  removeConnectionFromCache,
+  removeConnectionRequestFromCache,
+} from "@/services/socket/connectionCache";
 import { markConversationRead } from "@/services/api/conversation.api";
 import type { ChatMessage } from "@/types/chat.types";
+import type { ConnectionRequestItem } from "@/types/connection.types";
 import { useChatUiStore } from "@/stores/chat.store";
 import { useProfile } from "@/hooks/profile/useProfile";
 
@@ -93,6 +105,39 @@ export function useChatSocket() {
       setOnlineSnapshot(payload.userIds);
     };
 
+    const handleConnectionRequestNew = (request: ConnectionRequestItem) => {
+      prependIncomingRequest(queryClient, request, profileIdRef.current);
+      prependOutgoingRequest(queryClient, request, profileIdRef.current);
+      invalidateConnectionSuggestions(queryClient);
+      queryClient.invalidateQueries({
+        queryKey: ["connections", "status", request.sender.id],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["connections", "status", request.receiver.id],
+      });
+    };
+
+    const handleConnectionRequestRemoved = (
+      payload: ConnectionRequestRemovedPayload
+    ) => {
+      removeConnectionRequestFromCache(queryClient, payload.requestId);
+      invalidateConnectionSuggestions(queryClient);
+    };
+
+    const handleConnectionNew = (payload: ConnectionNewPayload) => {
+      prependConnectionToCache(queryClient, payload);
+      invalidateConnectionSuggestions(queryClient);
+      queryClient.invalidateQueries({
+        queryKey: ["connections", "status", payload.user.id],
+      });
+    };
+
+    const handleConnectionRemoved = (payload: ConnectionRemovedPayload) => {
+      removeConnectionFromCache(queryClient, payload);
+      invalidateConnectionSuggestions(queryClient);
+      queryClient.invalidateQueries({ queryKey: ["threads"] });
+    };
+
     void (async () => {
       socket = await connectChatSocket();
       if (!socket || !isMounted) return;
@@ -105,6 +150,13 @@ export function useChatSocket() {
       socket.on(SOCKET_EVENTS.PRESENCE_ONLINE, handlePresenceOnline);
       socket.on(SOCKET_EVENTS.PRESENCE_OFFLINE, handlePresenceOffline);
       socket.on(SOCKET_EVENTS.PRESENCE_SNAPSHOT, handlePresenceSnapshot);
+      socket.on(SOCKET_EVENTS.CONNECTION_REQUEST_NEW, handleConnectionRequestNew);
+      socket.on(
+        SOCKET_EVENTS.CONNECTION_REQUEST_REMOVED,
+        handleConnectionRequestRemoved
+      );
+      socket.on(SOCKET_EVENTS.CONNECTION_NEW, handleConnectionNew);
+      socket.on(SOCKET_EVENTS.CONNECTION_REMOVED, handleConnectionRemoved);
     })();
 
     return () => {
@@ -120,6 +172,16 @@ export function useChatSocket() {
       socket?.off(SOCKET_EVENTS.PRESENCE_ONLINE, handlePresenceOnline);
       socket?.off(SOCKET_EVENTS.PRESENCE_OFFLINE, handlePresenceOffline);
       socket?.off(SOCKET_EVENTS.PRESENCE_SNAPSHOT, handlePresenceSnapshot);
+      socket?.off(
+        SOCKET_EVENTS.CONNECTION_REQUEST_NEW,
+        handleConnectionRequestNew
+      );
+      socket?.off(
+        SOCKET_EVENTS.CONNECTION_REQUEST_REMOVED,
+        handleConnectionRequestRemoved
+      );
+      socket?.off(SOCKET_EVENTS.CONNECTION_NEW, handleConnectionNew);
+      socket?.off(SOCKET_EVENTS.CONNECTION_REMOVED, handleConnectionRemoved);
     };
   }, [
     profile?.id,

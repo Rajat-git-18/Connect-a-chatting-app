@@ -7,6 +7,10 @@ export const SOCKET_EVENTS = {
   PRESENCE_ONLINE: "presence:online",
   PRESENCE_OFFLINE: "presence:offline",
   PRESENCE_SNAPSHOT: "presence:snapshot",
+  CONNECTION_REQUEST_NEW: "connection:request:new",
+  CONNECTION_REQUEST_REMOVED: "connection:request:removed",
+  CONNECTION_NEW: "connection:new",
+  CONNECTION_REMOVED: "connection:removed",
 } as const;
 
 export function userRoom(userId: string) {

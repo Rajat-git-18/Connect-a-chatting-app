@@ -43,9 +43,14 @@ const TABS: TabItem[] = [
 type GlassTabBarProps = {
   active: TabKey;
   onChange: (tab: TabKey) => void;
+  friendsBadgeCount?: number;
 };
 
-export default function GlassTabBar({ active, onChange }: GlassTabBarProps) {
+export default function GlassTabBar({
+  active,
+  onChange,
+  friendsBadgeCount = 0,
+}: GlassTabBarProps) {
   const insets = useSafeAreaInsets();
 
   return (
@@ -65,6 +70,8 @@ export default function GlassTabBar({ active, onChange }: GlassTabBarProps) {
         <View style={styles.row}>
           {TABS.map((tab) => {
             const isActive = tab.key === active;
+            const showBadge =
+              tab.key === "friends" && friendsBadgeCount > 0 && !isActive;
 
             return (
               <TouchableOpacity
@@ -76,13 +83,22 @@ export default function GlassTabBar({ active, onChange }: GlassTabBarProps) {
                 accessibilityState={{ selected: isActive }}
                 accessibilityLabel={tab.label}
               >
-                <Ionicons
-                  name={isActive ? tab.iconActive : tab.icon}
-                  size={22}
-                  color={
-                    isActive ? theme.colors.primary : theme.colors.textTertiary
-                  }
-                />
+                <View style={styles.iconWrap}>
+                  <Ionicons
+                    name={isActive ? tab.iconActive : tab.icon}
+                    size={22}
+                    color={
+                      isActive ? theme.colors.primary : theme.colors.textTertiary
+                    }
+                  />
+                  {showBadge ? (
+                    <View style={styles.badge}>
+                      <Text style={styles.badgeText}>
+                        {friendsBadgeCount > 9 ? "9+" : friendsBadgeCount}
+                      </Text>
+                    </View>
+                  ) : null}
+                </View>
                 <Text
                   style={[styles.label, isActive && styles.labelActive]}
                 >
@@ -130,6 +146,32 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 4,
     paddingVertical: theme.spacing.xs,
+  },
+
+  iconWrap: {
+    position: "relative",
+  },
+
+  badge: {
+    position: "absolute",
+    top: -4,
+    right: -10,
+    minWidth: 16,
+    height: 16,
+    borderRadius: theme.radius.full,
+    backgroundColor: theme.colors.primary,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 4,
+    borderWidth: 1.5,
+    borderColor: theme.colors.white,
+  },
+
+  badgeText: {
+    fontSize: 10,
+    lineHeight: 12,
+    fontWeight: "700",
+    color: theme.colors.white,
   },
 
   label: {

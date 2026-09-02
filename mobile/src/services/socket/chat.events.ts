@@ -7,6 +7,10 @@ export const SOCKET_EVENTS = {
   PRESENCE_ONLINE: "presence:online",
   PRESENCE_OFFLINE: "presence:offline",
   PRESENCE_SNAPSHOT: "presence:snapshot",
+  CONNECTION_REQUEST_NEW: "connection:request:new",
+  CONNECTION_REQUEST_REMOVED: "connection:request:removed",
+  CONNECTION_NEW: "connection:new",
+  CONNECTION_REMOVED: "connection:removed",
 } as const;
 
 export type ConversationUpdatedPayload = {
@@ -39,4 +43,25 @@ export type PresenceUserPayload = {
 
 export type PresenceSnapshotPayload = {
   userIds: string[];
+};
+
+export type ConnectionRequestRemovedPayload = {
+  requestId: string;
+};
+
+export type ConnectionNewPayload = {
+  id: string;
+  connectedAt: string;
+  user: {
+    id: string;
+    username: string;
+    displayName: string;
+    profileImage: string | null;
+    bio: string | null;
+  };
+};
+
+export type ConnectionRemovedPayload = {
+  connectionId: string;
+  otherUserId: string;
 };
