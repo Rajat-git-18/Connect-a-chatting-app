@@ -8,6 +8,7 @@ type ChatComposerProps = {
   onSend: () => void;
   disabled?: boolean;
   isSending?: boolean;
+  placeholder?: string;
 };
 
 export default function ChatComposer({
@@ -16,6 +17,7 @@ export default function ChatComposer({
   onSend,
   disabled = false,
   isSending = false,
+  placeholder = "Type a message...",
 }: ChatComposerProps) {
   const canSend = value.trim().length > 0 && !disabled && !isSending;
 
@@ -24,7 +26,7 @@ export default function ChatComposer({
       <TextInput
         value={value}
         onChangeText={onChangeText}
-        placeholder="Type a message..."
+        placeholder={placeholder}
         placeholderTextColor={theme.colors.textTertiary}
         style={styles.input}
         multiline

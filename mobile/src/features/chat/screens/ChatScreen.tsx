@@ -20,6 +20,7 @@ import { useConversation } from "@/hooks/chat/useConversation";
 import { useMessages } from "@/hooks/chat/useMessages";
 import { useSendMessage } from "@/hooks/chat/useSendMessage";
 import { useMarkConversationRead } from "@/hooks/chat/useMarkConversationRead";
+import { useConnectionStatus } from "@/hooks/connections/useConnectionStatus";
 import { useChatUiStore, useIsOtherUserTyping, useIsUserOnline } from "@/stores/chat.store";
 import OnlineStatusDot from "../components/OnlineStatusDot";
 import { useTypingEmitter, stopTyping } from "@/hooks/chat/useTypingEmitter";
@@ -36,6 +37,12 @@ export default function ChatScreen() {
   const { data: profile } = useProfile();
   const { data: conversation, isLoading: isConversationLoading } =
     useConversation(conversationId);
+  const { data: connectionStatus, isLoading: isConnectionLoading } =
+    useConnectionStatus(conversation?.otherUser.id ?? "");
+  const canSendMessages =
+    isConnectionLoading || connectionStatus?.status === "CONNECTED";
+  const showReadOnlyBanner =
+    !isConnectionLoading && connectionStatus?.status !== "CONNECTED";
   const {
     data,
     isLoading: isMessagesLoading,
@@ -52,7 +59,7 @@ export default function ChatScreen() {
   const isOtherUserOnline = useIsUserOnline(conversation?.otherUser.id);
   const [draft, setDraft] = useState("");
 
-  useTypingEmitter(conversationId, draft);
+  useTypingEmitter(conversationId, canSendMessages ? draft : "");
 
   useEffect(() => {
     if (!conversationId) return;
@@ -189,11 +196,30 @@ export default function ChatScreen() {
           showsVerticalScrollIndicator={false}
         />
 
+        {!showReadOnlyBanner ? null : (
+          <View style={styles.readOnlyBanner}>
+            <Ionicons
+              name="lock-closed-outline"
+              size={16}
+              color={theme.colors.textSecondary}
+            />
+            <Text style={styles.readOnlyText}>
+              You are no longer connected. This chat is read-only.
+            </Text>
+          </View>
+        )}
+
         <ChatComposer
           value={draft}
           onChangeText={setDraft}
           onSend={handleSend}
+          disabled={!canSendMessages}
           isSending={false}
+          placeholder={
+            canSendMessages
+              ? "Type a message..."
+              : "Reconnect to send messages"
+          }
         />
       </KeyboardAvoidingView>
     </View>
@@ -330,5 +356,25 @@ const styles = StyleSheet.create({
   loadOlder: {
     paddingVertical: theme.spacing.md,
     transform: [{ scaleY: -1 }],
+  },
+
+  readOnlyBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.lg,
+    paddingTop: theme.spacing.sm,
+    paddingBottom: theme.spacing.xs,
+    backgroundColor: theme.colors.surface,
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.border,
+  },
+
+  readOnlyText: {
+    ...theme.typography.caption,
+    color: theme.colors.textSecondary,
+    textAlign: "center",
+    flex: 1,
   },
 });

@@ -254,6 +254,13 @@ export async function sendMessageService(
     userId
   );
 
+  const otherUserId =
+    conversation.userOneId === userId
+      ? conversation.userTwoId
+      : conversation.userOneId;
+
+  await assertUsersConnected(userId, otherUserId);
+
   const message = await conversationRepository.createMessage({
     conversationId,
     senderId: userId,

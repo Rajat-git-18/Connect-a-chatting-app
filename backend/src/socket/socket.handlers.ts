@@ -1,4 +1,5 @@
 import type { Socket } from "socket.io";
+import { connectionRepository } from "../modules/connection/connection.repository.js";
 import { conversationRepository } from "../modules/conversation/conversation.repository.js";
 import { getSocketServer } from "./socket.emitter.js";
 import { SOCKET_EVENTS, userRoom } from "./socket.events.js";
@@ -48,6 +49,13 @@ export function registerChatSocketHandlers(socket: Socket) {
 
     if (!otherUserId) return;
 
+    const connection = await connectionRepository.findConnectionBetween(
+      userId,
+      otherUserId
+    );
+
+    if (!connection) return;
+
     relayTypingEvent(otherUserId, SOCKET_EVENTS.TYPING_START, {
       conversationId: payload.conversationId,
       userId,
@@ -63,6 +71,13 @@ export function registerChatSocketHandlers(socket: Socket) {
     );
 
     if (!otherUserId) return;
+
+    const connection = await connectionRepository.findConnectionBetween(
+      userId,
+      otherUserId
+    );
+
+    if (!connection) return;
 
     relayTypingEvent(otherUserId, SOCKET_EVENTS.TYPING_STOP, {
       conversationId: payload.conversationId,
